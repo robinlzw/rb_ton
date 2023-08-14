@@ -171,6 +171,7 @@ int main() {
   SET_VERBOSITY_LEVEL(verbosity_INFO);
   td::actor::ActorOwn<ValidatorEngineConsole> x;
   td::actor::Scheduler scheduler({8});
+  auto sch = td::thread([&] { scheduler.run(); });
   scheduler.run_in_context([&] {
     x = td::actor::create_actor<ValidatorEngineConsole>("console");
     td::IPAddress addr;
@@ -187,9 +188,10 @@ int main() {
   });
 
   scheduler.run_in_context([&] {
-    td::actor::send_closure(x, &ValidatorEngineConsole::wait);
   });
 
-  scheduler.run();
+  // scheduler.run();
+  sch.join();
+  td::actor::send_closure(x, &ValidatorEngineConsole::add_cmd, td::BufferSlice{"xxx"});
   return 0;
 }

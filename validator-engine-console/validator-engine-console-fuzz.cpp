@@ -36,10 +36,13 @@
 
 int verbosity;
 
+static td::actor::Scheduler g_scheduler({8});
+
 std::unique_ptr<ton::adnl::AdnlExtClient::Callback> ValidatorEngineConsole::make_callback() {
   class Callback : public ton::adnl::AdnlExtClient::Callback {
    public:
     void on_ready() override {
+      std::cout << "ValidatorEngineConsole on_ready\n";
       td::actor::send_closure(id_, &ValidatorEngineConsole::conn_ready);
     }
     void on_stop_ready() override {
@@ -55,14 +58,12 @@ std::unique_ptr<ton::adnl::AdnlExtClient::Callback> ValidatorEngineConsole::make
 }
 
 void ValidatorEngineConsole::run() {
-  std::cout << "run...\n";
   client_ = ton::adnl::AdnlExtClient::create(ton::adnl::AdnlNodeIdFull{server_public_key_}, private_key_, remote_addr_,
                                              make_callback());
   auto overlays_stats_query_ptr = std::make_unique<QueryRunnerImpl<GetOverlaysStatsQuery>>();
   std::unique_ptr<QueryRunner> query_runner_ptr = std::move(overlays_stats_query_ptr);
-  // std::cout << ">> add_query_runner::run()\n";
   add_query_runner(std::move(query_runner_ptr));
-  // std::cout << "<< ValidatorEngineConsole::run()\n";
+  std::cout << "<< ValidatorEngineConsole::run()\n";
 }
 
 bool ValidatorEngineConsole::envelope_send_query(td::BufferSlice query, td::Promise<td::BufferSlice> promise) {
@@ -83,28 +84,35 @@ bool ValidatorEngineConsole::envelope_send_query(td::BufferSlice query, td::Prom
       promise.set_error(td::Status::Error(f->code_, f->message_));
       return;
     }
+    std::cout << "-------> get_query_result = " << data.data() << std::endl << std::endl;
     promise.set_result(std::move(data));
   });
   td::BufferSlice b = ton::serialize_tl_object(
       ton::create_tl_object<ton::ton_api::engine_validator_controlQuery>(std::move(query)), true);
-  std::cout << "lll >> envelope_send_query AdnlExtClient::send_query" << std::endl;
+  std::cout << " ValidatorEngineConsole::envelope_send_query client_ send_query" << std::endl;
   td::actor::send_closure(client_, &ton::adnl::AdnlExtClient::send_query, "query", std::move(b),
-                          td::Timestamp::in(10.0), std::move(P));
+                          td::Timestamp::in(1.0), std::move(P));
   return true;
 }
 
 void ValidatorEngineConsole::got_result(bool success) {
+  std::cout << "got_result: " << success << std::endl;
+  std::cout << "ex_mode_: " << ex_mode_ << std::endl;
   if (!success && ex_mode_) {
-    std::_Exit(2);
+    // std::_Exit(2);
+    return;
   }
   running_queries_--;
+  std::cout << "running_queries_ = " << running_queries_ << std::endl;
+  std::cout << "ex_queries_.size() = " << ex_queries_.size() << std::endl;
   if (!running_queries_ && ex_queries_.size() > 0) {
-    // auto data = std::move(ex_queries_[0]);
+    auto data = std::move(ex_queries_[0]);
     ex_queries_.erase(ex_queries_.begin());
     parse_line();
   }
   if (ex_mode_ && !running_queries_ && ex_queries_.size() == 0) {
-    std::_Exit(0);
+    std::cout << "run finish one query, ex_queries_ is empty\n";
+    // std::_Exit(0);
   }
 }
 
@@ -131,23 +139,17 @@ void ValidatorEngineConsole::show_license(td::Promise<td::BufferSlice> promise) 
 }
 
 void ValidatorEngineConsole::parse_line() {
+  std::cout << ">> ValidatorEngineConsole::parse_line()\n";
   for (const auto &item : query_runners_)
   {
+    running_queries_++;
     item.second->run(actor_id(this));
   }
-  sleep(9);
 }
 
 void ValidatorEngineConsole::set_private_key(td::BufferSlice file_name) {
   auto R = [&]() -> td::Result<ton::PrivateKey> {
-    // TRY_RESULT_PREFIX(conf_data, td::read_file(file_name.as_slice().str()), "failed to read: ");
     TRY_RESULT_PREFIX(conf_data, td::read_file("/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/client"), "failed to read: ");
-    // auto r_conf_data216 = td::read_file(file_name.as_slice().str()); 
-    // if (r_conf_data216.is_error()) { 
-    //   return r_conf_data216.move_as_error_prefix("failed to read: "); 
-    // } 
-    // auto conf_data = r_conf_data216.move_as_ok();
-
     return ton::PrivateKey::import(conf_data.as_slice());
   }();
 
@@ -159,7 +161,6 @@ void ValidatorEngineConsole::set_private_key(td::BufferSlice file_name) {
 
 void ValidatorEngineConsole::set_public_key(td::BufferSlice file_name) {
   auto R = [&]() -> td::Result<ton::PublicKey> {
-    // TRY_RESULT_PREFIX(conf_data, td::read_file(file_name.as_slice().str()), "failed to read: ");
     TRY_RESULT_PREFIX(conf_data, td::read_file("/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/server.pub"), "failed to read: ");
 
     return ton::PublicKey::import(conf_data.as_slice());
@@ -175,8 +176,8 @@ bool g_start_up = false;
 td::actor::ActorOwn<ValidatorEngineConsole> g_validator_engine_console_actor_own;
 void main_start_up()
 {
-  SET_VERBOSITY_LEVEL(verbosity_INFO);
-  td::actor::Scheduler scheduler({2});
+  SET_VERBOSITY_LEVEL(verbosity_INFO);  
+  td::actor::Scheduler scheduler({8});
   scheduler.run_in_context([&] {
     g_validator_engine_console_actor_own = td::actor::create_actor<ValidatorEngineConsole>("console");
     td::IPAddress addr;
@@ -187,28 +188,73 @@ void main_start_up()
       td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/client"});
     td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::set_public_key, 
       td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/server.pub"});
-    
-    std::cout << "\n--------------- 0000 ---------------\n";
+
     std::cout << "x.id = " << g_validator_engine_console_actor_own.get().actor_info().get_name().c_str() << std::endl;
     td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::run);
   });
 
-  scheduler.run(1);
+  scheduler.run_in_context([&] {
+    std::cout << "run_in_context" << std::endl;
+  });
+
+  auto sch = td::thread([&] {
+    while (scheduler.run(1)) {
+    }
+    scheduler.stop();
+  });
+  sch.join();
+
+  std::cout << "main_start_up return" << std::endl;
 }
+
 int run_main(const char * data, size_t size) {
-  std::cout << "data = " << data << ", size = " << size << std::endl;
+  std::cout << ">> run_main: data = " << data << ", size = " << size << std::endl;
   if (!g_start_up)
   {
     main_start_up();
+    // main_start_up_v2();
+    std::cout << "main_start_up end" << std::endl;
     g_start_up = true;
   }
-  std::cout << "\n--------------- 0001 ---------------\n";
-  td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::parse_line); 
-  // td::actor::send_closure(x, &ValidatorEngineConsole::parse_line, td::BufferSlice{(data, size)}); 
-  std::cout << "\n--------------- 0002 ---------------\n";
+  else
+  {
+    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::add_cmd, td::BufferSlice(data, size));
+  }
+  std::cout << "<< run_main" << std::endl;
   return 0;
 }
 
+td::thread g_sch;
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t * data, size_t size) {
-  run_main((const char*)data, size);
+  std::cout << "LLVMFuzzerTestOneInput..." << std::endl;
+  // run_main((const char*)data, size);
+  SET_VERBOSITY_LEVEL(verbosity_INFO);
+  td::actor::ActorOwn<ValidatorEngineConsole> x;
+  // g_scheduler.start();
+  if (!g_start_up) {
+    g_sch = td::thread([&] { g_scheduler.run(); });
+    g_scheduler.run_in_context([&] {
+      g_validator_engine_console_actor_own = td::actor::create_actor<ValidatorEngineConsole>("console");
+      td::IPAddress addr;
+      addr.init_host_port("localhost:4441");
+      td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::set_remote_addr, addr);
+
+      td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::set_private_key, 
+        td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/client"});
+      td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::set_public_key, 
+        td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/server.pub"});
+
+      std::cout << "x.id = " << g_validator_engine_console_actor_own.get().actor_info().get_name().c_str() << std::endl;
+      td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::run);
+    });
+    g_start_up = true;
+    g_sch.detach();
+  }
+
+  g_scheduler.run_in_context([&] {
+    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::add_cmd, td::BufferSlice{"xxx"});
+  });
+  sleep(4);
+  std::cout << "=================================================\n\n" << std::endl;
+  return 0;
 }

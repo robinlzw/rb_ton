@@ -17,6 +17,7 @@
     Copyright 2017-2020 Telegram Systems LLP
 */
 #pragma once
+#include <iostream>
 #include "td/actor/core/Actor.h"
 #include "td/actor/core/ActorSignals.h"
 #include "td/actor/core/SchedulerId.h"
@@ -148,6 +149,7 @@ class Scheduler {
   bool run() {
     start();
     while (schedulers_[0]->run(10)) {
+      std::cout << "while (schedulers_[0]->run(10)) \n";
     }
     return false;
   }

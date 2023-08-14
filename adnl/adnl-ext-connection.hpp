@@ -76,6 +76,9 @@ class AdnlExtConnection : public td::actor::Actor, public td::ObserverBase {
     }
   }
   void send_ready() {
+    std::cout << "lll send_ready:  check_ready = " << check_ready() << std::endl;
+    std::cout << "lll send_ready:  sent_ready_ = " << sent_ready_ << std::endl;
+    std::cout << "lll send_ready:  callback_ = " << callback_.get() << std::endl;
     if (check_ready() && !sent_ready_ && callback_) {
       callback_->on_ready(actor_id(this));
       sent_ready_ = true;
