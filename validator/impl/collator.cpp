@@ -2086,6 +2086,7 @@ bool Collator::create_special_transaction(block::CurrencyCollection amount, Ref<
 }
 
 bool Collator::create_special_transactions() {
+  std::cout << "\nzz============================w create_special_transactions w=====================================zz\n";
   CHECK(is_masterchain());
   return create_special_transaction(value_flow_.recovered, config_->get_config_param(3, 1), recover_create_msg_) &&
          create_special_transaction(value_flow_.minted, config_->get_config_param(2, 0), mint_msg_);

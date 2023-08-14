@@ -40,7 +40,7 @@
 #include "crypto/ellcurve/Ed25519.h"
 
 #endif
-
+#include <iostream>
 namespace td {
 
 Ed25519::PublicKey::PublicKey(SecureString octet_string) : octet_string_(std::move(octet_string)) {
@@ -236,10 +236,15 @@ Status Ed25519::PublicKey::verify_signature(Slice data, Slice signature) const {
 }
 
 Result<SecureString> Ed25519::compute_shared_secret(const PublicKey &public_key, const PrivateKey &private_key) {
+  std::cout << "lll >> Ed25519::compute_shared_secret() 00" << std::endl;
   BigNum p = BigNum::from_hex("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed").move_as_ok();
+  std::cout << "lll >> Ed25519::compute_shared_secret() 11" << std::endl;
   auto public_y = public_key.as_octet_string();
+  std::cout << "lll >> Ed25519::compute_shared_secret() 22" << std::endl;
   public_y.as_mutable_slice()[31] = static_cast<char>(public_y[31] & 127);
+  std::cout << "lll >> Ed25519::compute_shared_secret() 33" << std::endl;
   BigNum y = BigNum::from_le_binary(public_y);
+  std::cout << "lll >> Ed25519::compute_shared_secret() 44" << std::endl;
   BigNum y2 = y.clone();
   y += 1;
   y2 -= 1;
@@ -247,24 +252,25 @@ Result<SecureString> Ed25519::compute_shared_secret(const PublicKey &public_key,
   BigNumContext context;
 
   BigNum::mod_sub(y2, p, y2, p, context);
-
+  std::cout << "lll >> Ed25519::compute_shared_secret() 55" << std::endl;
   BigNum inverse_y_plus_1;
   BigNum::mod_inverse(inverse_y_plus_1, y2, p, context);
-
+  std::cout << "lll >> Ed25519::compute_shared_secret() 66" << std::endl;
   BigNum u;
   BigNum::mod_mul(u, y, inverse_y_plus_1, p, context);
-
+  std::cout << "lll >> Ed25519::compute_shared_secret() 77" << std::endl;
   auto pr_key = private_key.as_octet_string();
   unsigned char buf[64];
   SHA512(Slice(pr_key).ubegin(), 32, buf);
   buf[0] &= 248;
   buf[31] &= 127;
   buf[31] |= 64;
-
+  std::cout << "lll >> Ed25519::compute_shared_secret() 88" << std::endl;
   auto pkey_private = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, nullptr, buf, 32);
   if (pkey_private == nullptr) {
     return Status::Error("Can't import private key");
   }
+  std::cout << "lll >> Ed25519::compute_shared_secret() 99" << std::endl;
   SCOPE_EXIT {
     EVP_PKEY_free(pkey_private);
   };
@@ -279,7 +285,7 @@ Result<SecureString> Ed25519::compute_shared_secret(const PublicKey &public_key,
     EVP_PKEY_free(pkey_public);
   };
   // LOG(ERROR) << buffer_to_hex(pub_key);
-
+  std::cout << "lll >> Ed25519::compute_shared_secret() aa" << std::endl;
   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey_private, nullptr);
   if (ctx == nullptr) {
     return Status::Error("Can't create EVP_PKEY_CTX");
@@ -287,6 +293,7 @@ Result<SecureString> Ed25519::compute_shared_secret(const PublicKey &public_key,
   SCOPE_EXIT {
     EVP_PKEY_CTX_free(ctx);
   };
+  std::cout << "lll >> Ed25519::compute_shared_secret() bb" << std::endl;
 
   if (EVP_PKEY_derive_init(ctx) <= 0) {
     return Status::Error("Can't init derive");
@@ -294,6 +301,7 @@ Result<SecureString> Ed25519::compute_shared_secret(const PublicKey &public_key,
   if (EVP_PKEY_derive_set_peer(ctx, pkey_public) <= 0) {
     return Status::Error("Can't init derive");
   }
+  std::cout << "lll >> Ed25519::compute_shared_secret() cc" << std::endl;
 
   size_t result_len = 0;
   if (EVP_PKEY_derive(ctx, nullptr, &result_len) <= 0) {
@@ -302,11 +310,13 @@ Result<SecureString> Ed25519::compute_shared_secret(const PublicKey &public_key,
   if (result_len != 32) {
     return Status::Error("Unexpected result length");
   }
+  std::cout << "lll >> Ed25519::compute_shared_secret() dd" << std::endl;
 
   SecureString result(result_len, '\0');
   if (EVP_PKEY_derive(ctx, result.as_mutable_slice().ubegin(), &result_len) <= 0) {
     return Status::Error("Failed to compute shared secret");
   }
+  std::cout << "lll >> Ed25519::compute_shared_secret() ee" << std::endl;
   return std::move(result);
 }
 

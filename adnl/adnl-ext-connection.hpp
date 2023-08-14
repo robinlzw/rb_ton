@@ -95,13 +95,17 @@ class AdnlExtConnection : public td::actor::Actor, public td::ObserverBase {
   }
 
   void start_up() override {
+    std::cout << "lll >> AdnlExtConnection::start_up()\n";
     self_ = actor_id(this);
     // Subscribe for socket updates
     // NB: Interface will be changed
     td::actor::SchedulerContext::get()->get_poll().subscribe(buffered_fd_.get_poll_info().extract_pollable_fd(this),
                                                              td::PollFlags::ReadWrite());
+    std::cout << "lll >> AdnlExtConnection::update_timer()\n";  
     update_timer();
+    std::cout << "lll >> AdnlExtConnection::notify()\n";  
     notify();
+    std::cout << "lll << AdnlExtConnection::notify()\n";  
   }
 
  private:

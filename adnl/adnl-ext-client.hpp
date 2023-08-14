@@ -74,6 +74,7 @@ class AdnlExtClientImpl : public AdnlExtClient {
   }
 
   void start_up() override {
+    std::cout << "lzw AdnlExtClientImpl::start_up\n";
     alarm();
   }
   void conn_stopped(td::actor::ActorId<AdnlExtConnection> conn) {
@@ -95,6 +96,7 @@ class AdnlExtClientImpl : public AdnlExtClient {
   void check_ready(td::Promise<td::Unit> promise) override;
   void send_query(std::string name, td::BufferSlice data, td::Timestamp timeout,
                   td::Promise<td::BufferSlice> promise) override {
+    std::cout << "AdnlExtClientImpl send query" << std::endl;
     auto P = [SelfId = actor_id(this)](AdnlQueryId id) {
       td::actor::send_closure(SelfId, &AdnlExtClientImpl::destroy_query, id);
     };

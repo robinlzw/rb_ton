@@ -52,8 +52,11 @@ td::Result<std::unique_ptr<Decryptor>> Decryptor::create(const ton_api::PrivateK
 }
 
 td::Result<td::BufferSlice> EncryptorEd25519::encrypt(td::Slice data) {
+  std::cout << "lll >> EncryptorEd25519::encrypt" << std::endl;
   TRY_RESULT_PREFIX(pk, td::Ed25519::generate_private_key(), "failed to generate private key: ");
+  std::cout << "lll << generate_private_key" << std::endl;
   TRY_RESULT_PREFIX(pubkey, pk.get_public_key(), "failed to get public key from private: ");
+  std::cout << "lll << pk.get_public_key" << std::endl;
   auto pubkey_str = pubkey.as_octet_string();
 
   td::BufferSlice msg(pubkey_str.size() + 32 + data.size());
@@ -61,7 +64,16 @@ td::Result<td::BufferSlice> EncryptorEd25519::encrypt(td::Slice data) {
   slice.copy_from(pubkey_str);
   slice.remove_prefix(pubkey_str.size());
 
-  TRY_RESULT_PREFIX(shared_secret, td::Ed25519::compute_shared_secret(pub_, pk), "failed to compute shared secret: ");
+  // TRY_RESULT_PREFIX(shared_secret, td::Ed25519::compute_shared_secret(pub_, pk), "failed to compute shared secret: ");
+  std::cout << "lll << td::Ed25519::compute_shared_secret(pub_, pk) 00" << std::endl;
+  auto r_shared_secret67 = (td::Ed25519::compute_shared_secret(pub_, pk)); 
+  std::cout << "lll << td::Ed25519::compute_shared_secret(pub_, pk) 11" << std::endl;
+  if (r_shared_secret67.is_error()) { 
+    return r_shared_secret67.move_as_error_prefix("failed to compute shared secret: "); 
+  }
+  std::cout << "lll << td::Ed25519::compute_shared_secret(pub_, pk) 22" << std::endl;
+  auto shared_secret = r_shared_secret67.move_as_ok();
+  std::cout << "lll << td::Ed25519::compute_shared_secret(pub_, pk) 33" << std::endl;
 
   td::MutableSlice digest = slice.substr(0, 32);
   slice.remove_prefix(32);

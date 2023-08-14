@@ -24,13 +24,18 @@ namespace ton {
 namespace adnl {
 
 void AdnlExtClientImpl::alarm() {
+  std::cout << "lzw  AdnlExtClientImpl::alarm() judge connect is done\n";
   if (is_closing_) {
     return;
   }
+  std::cout << "lzw  AdnlExtClientImpl::alarm() conn_.empty() = " << conn_.empty() << std::endl;
+  std::cout << "lzw  AdnlExtClientImpl::alarm() !conn_.is_alive() = " << !conn_.is_alive() << std::endl;
   if (conn_.empty() || !conn_.is_alive()) {
+    std::cout << "lzw >> next_create_at_" << std::endl;
     next_create_at_ = td::Timestamp::in(10.0);
+    std::cout << "lzw << next_create_at_" << std::endl;
     alarm_timestamp() = next_create_at_;
-
+    std::cout << "lzw << alarm_timestamp" << std::endl;
     auto fd = td::SocketFd::open(dst_addr_);
     if (fd.is_error()) {
       LOG(INFO) << "failed to connect to " << dst_addr_ << ": " << fd.move_as_error();
@@ -51,7 +56,7 @@ void AdnlExtClientImpl::alarm() {
       Cb(td::actor::ActorId<AdnlExtClientImpl> id) : id_(id) {
       }
     };
-
+    std::cout << "lzw create_actor<AdnlOutboundConnection>" << std::endl;
     conn_ = td::actor::create_actor<AdnlOutboundConnection>(td::actor::ActorOptions().with_name("outconn").with_poll(),
                                                             fd.move_as_ok(), std::make_unique<Cb>(actor_id(this)), dst_,
                                                             local_id_, actor_id(this));
@@ -111,8 +116,11 @@ td::Status AdnlOutboundConnection::process_custom_packet(td::BufferSlice &data, 
 }
 
 void AdnlOutboundConnection::start_up() {
+  std::cout << "lll >> AdnlOutboundConnection::start_up()\n";
   AdnlExtConnection::start_up();
+  std::cout << "lll >> AdnlOutboundConnection::create_encryptor()\n";
   auto X = dst_.pubkey().create_encryptor();
+  std::cout << "lll >> X.is_error() = " << X.is_error() << std::endl;
   if (X.is_error()) {
     LOG(ERROR) << "failed to init encryptor: " << X.move_as_error();
     stop();
@@ -128,6 +136,7 @@ void AdnlOutboundConnection::start_up() {
   S.truncate(256 - 64 - 32);
   td::Random::secure_bytes(S);
   init_crypto(S);
+  std::cout << "lll >> enc->encrypt(S)" << std::endl;
 
   auto R = enc->encrypt(S);
   if (R.is_error()) {
@@ -150,6 +159,7 @@ void AdnlOutboundConnection::start_up() {
     auto obj = create_tl_object<ton_api::tcp_authentificate>(td::BufferSlice{nonce_.as_slice()});
     send(serialize_tl_object(obj, true));
   }
+  std::cout << "lll << AdnlExtClientImpl start_up end" << std::endl;
 }
 
 void AdnlExtClientImpl::check_ready(td::Promise<td::Unit> promise) {
@@ -169,6 +179,7 @@ td::actor::ActorOwn<AdnlExtClient> AdnlExtClient::create(AdnlNodeIdFull dst, td:
 td::actor::ActorOwn<AdnlExtClient> AdnlExtClient::create(AdnlNodeIdFull dst, PrivateKey local_id,
                                                          td::IPAddress dst_addr,
                                                          std::unique_ptr<AdnlExtClient::Callback> callback) {
+  std::cout << "lzw td::actor::ActorOwn<AdnlExtClient> AdnlExtClient::create()\n";
   return td::actor::create_actor<AdnlExtClientImpl>("extclient", std::move(dst), std::move(local_id), dst_addr,
                                                     std::move(callback));
 }

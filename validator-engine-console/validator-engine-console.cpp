@@ -1,30 +1,3 @@
-/*
-    This file is part of TON Blockchain source code.
-
-    TON Blockchain is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License
-    as published by the Free Software Foundation; either version 2
-    of the License, or (at your option) any later version.
-
-    TON Blockchain is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with TON Blockchain.  If not, see <http://www.gnu.org/licenses/>.
-
-    In addition, as a special exception, the copyright holders give permission
-    to link the code of portions of this program with the OpenSSL library.
-    You must obey the GNU General Public License in all respects for all
-    of the code used other than OpenSSL. If you modify file(s) with this
-    exception, you may extend this exception to your version of the file(s),
-    but you are not obligated to do so. If you do not wish to do so, delete this
-    exception statement from your version. If you delete this exception statement
-    from all source files in the program, then also delete it here.
-
-    Copyright 2017-2020 Telegram Systems LLP
-*/
 #include "validator-engine-console.h"
 #include "adnl/adnl-ext-client.h"
 #include "tl-utils/lite-utils.hpp"
@@ -67,6 +40,7 @@ std::unique_ptr<ton::adnl::AdnlExtClient::Callback> ValidatorEngineConsole::make
   class Callback : public ton::adnl::AdnlExtClient::Callback {
    public:
     void on_ready() override {
+      std::cout << "ValidatorEngineConsole on_ready\n";
       td::actor::send_closure(id_, &ValidatorEngineConsole::conn_ready);
     }
     void on_stop_ready() override {
@@ -82,70 +56,16 @@ std::unique_ptr<ton::adnl::AdnlExtClient::Callback> ValidatorEngineConsole::make
 }
 
 void ValidatorEngineConsole::run() {
-  class Cb : public td::TerminalIO::Callback {
-   public:
-    void line_cb(td::BufferSlice line) override {
-      td::actor::send_closure(id_, &ValidatorEngineConsole::parse_line, std::move(line));
-    }
-    Cb(td::actor::ActorId<ValidatorEngineConsole> id) : id_(id) {
-    }
-
-   private:
-    td::actor::ActorId<ValidatorEngineConsole> id_;
-  };
-  io_ = td::TerminalIO::create("> ", readline_enabled_, ex_mode_, std::make_unique<Cb>(actor_id(this)));
-  td::actor::send_closure(io_, &td::TerminalIO::set_log_interface);
-
-  td::TerminalIO::out() << "connecting to " << remote_addr_ << "\n";
-  td::TerminalIO::out() << "local key: " << private_key_.compute_short_id().bits256_value().to_hex() << "\n";
-  td::TerminalIO::out() << "remote key: " << server_public_key_.compute_short_id().bits256_value().to_hex() << "\n";
-
   client_ = ton::adnl::AdnlExtClient::create(ton::adnl::AdnlNodeIdFull{server_public_key_}, private_key_, remote_addr_,
                                              make_callback());
-
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetTimeQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetHelpQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetLicenseQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<NewKeyQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<ImportPrivateKeyFileQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<ExportPublicKeyQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<ExportPublicKeyFileQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<SignQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<SignFileQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddAdnlAddrQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddDhtIdQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddValidatorPermanentKeyQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddValidatorTempKeyQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddValidatorAdnlAddrQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<ChangeFullNodeAdnlAddrQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddLiteServerQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<DelAdnlAddrQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<DelDhtIdQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<DelValidatorPermanentKeyQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<DelValidatorTempKeyQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<DelValidatorAdnlAddrQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetConfigQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<SetVerbosityQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetStatsQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<QuitQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddNetworkAddressQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<AddNetworkProxyAddressQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<CreateElectionBidQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<CreateProposalVoteQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<CreateComplaintVoteQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<CheckDhtServersQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<SignCertificateQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<ImportCertificateQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetOverlaysStatsQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetOverlaysStatsJsonQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<ImportShardOverlayCertificateQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<SignShardOverlayCertificateQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetPerfTimerStatsJsonQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<GetShardOutQueueSizeQuery>>());
-  add_query_runner(std::make_unique<QueryRunnerImpl<SetExtMessagesBroadcastDisabledQuery>>());
+  auto overlays_stats_query_ptr = std::make_unique<QueryRunnerImpl<GetOverlaysStatsQuery>>();
+  std::unique_ptr<QueryRunner> query_runner_ptr = std::move(overlays_stats_query_ptr);
+  add_query_runner(std::move(query_runner_ptr));
+  std::cout << "<< ValidatorEngineConsole::run()\n";
 }
 
 bool ValidatorEngineConsole::envelope_send_query(td::BufferSlice query, td::Promise<td::BufferSlice> promise) {
+  std::cout << "lll >> envelope_send_query" << std::endl;
   if (!ready_ || client_.empty()) {
     promise.set_error(td::Status::Error(ton::ErrorCode::notready, "failed to send query to server: not ready"));
     return false;
@@ -162,25 +82,30 @@ bool ValidatorEngineConsole::envelope_send_query(td::BufferSlice query, td::Prom
       promise.set_error(td::Status::Error(f->code_, f->message_));
       return;
     }
+    std::cout << "-------> get_query_result = " << data.data() << std::endl << std::endl;
     promise.set_result(std::move(data));
   });
   td::BufferSlice b = ton::serialize_tl_object(
       ton::create_tl_object<ton::ton_api::engine_validator_controlQuery>(std::move(query)), true);
+  std::cout << " ValidatorEngineConsole::envelope_send_query client_ send_query" << std::endl;
   td::actor::send_closure(client_, &ton::adnl::AdnlExtClient::send_query, "query", std::move(b),
-                          td::Timestamp::in(10.0), std::move(P));
+                          td::Timestamp::in(1.0), std::move(P));
   return true;
 }
 
 void ValidatorEngineConsole::got_result(bool success) {
+  std::cout << "got_result" << std::endl;
   if (!success && ex_mode_) {
     std::_Exit(2);
   }
   running_queries_--;
-  if (!running_queries_ && ex_queries_.size() > 0) {
-    auto data = std::move(ex_queries_[0]);
-    ex_queries_.erase(ex_queries_.begin());
-    parse_line(std::move(data));
-  }
+  // add_cmd();
+  // if (!running_queries_ && ex_queries_.size() > 0) {
+    // auto data = std::move(ex_queries_[0]);
+    // ex_queries_.erase(ex_queries_.begin());
+    parse_line();
+    sleep(4);
+  // }
   if (ex_mode_ && !running_queries_ && ex_queries_.size() == 0) {
     std::_Exit(0);
   }
@@ -204,34 +129,22 @@ void ValidatorEngineConsole::show_help(std::string command, td::Promise<td::Buff
 }
 
 void ValidatorEngineConsole::show_license(td::Promise<td::BufferSlice> promise) {
-  td::TerminalIO::out() << R"(Copyright (C) 2019 Telegram Systems LLP.
-License GPLv2+: GNU GPL version 2 or later <https://www.gnu.org/licenses/gpl-2.0.html>
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.)"
-                        << "\n";
+  td::TerminalIO::out() << R"(Copyright)" << "\n";
   promise.set_value(td::BufferSlice{});
 }
 
-void ValidatorEngineConsole::parse_line(td::BufferSlice data) {
-  Tokenizer tokenizer(std::move(data));
-  if (tokenizer.endl()) {
-    return;
-  }
-  auto name = tokenizer.get_token<std::string>().move_as_ok();
-
-  auto it = query_runners_.find(name);
-  if (it != query_runners_.end()) {
+void ValidatorEngineConsole::parse_line() {
+  std::cout << ">> ValidatorEngineConsole::parse_line()\n";
+  for (const auto &item : query_runners_)
+  {
     running_queries_++;
-    it->second->run(actor_id(this), std::move(tokenizer));
-  } else {
-    td::TerminalIO::out() << "unknown command '" << name << "'\n";
+    item.second->run(actor_id(this));
   }
 }
 
 void ValidatorEngineConsole::set_private_key(td::BufferSlice file_name) {
   auto R = [&]() -> td::Result<ton::PrivateKey> {
-    TRY_RESULT_PREFIX(conf_data, td::read_file(file_name.as_slice().str()), "failed to read: ");
-
+    TRY_RESULT_PREFIX(conf_data, td::read_file("/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/client"), "failed to read: ");
     return ton::PrivateKey::import(conf_data.as_slice());
   }();
 
@@ -243,7 +156,7 @@ void ValidatorEngineConsole::set_private_key(td::BufferSlice file_name) {
 
 void ValidatorEngineConsole::set_public_key(td::BufferSlice file_name) {
   auto R = [&]() -> td::Result<ton::PublicKey> {
-    TRY_RESULT_PREFIX(conf_data, td::read_file(file_name.as_slice().str()), "failed to read: ");
+    TRY_RESULT_PREFIX(conf_data, td::read_file("/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/server.pub"), "failed to read: ");
 
     return ton::PublicKey::import(conf_data.as_slice());
   }();
@@ -254,66 +167,29 @@ void ValidatorEngineConsole::set_public_key(td::BufferSlice file_name) {
   server_public_key_ = R.move_as_ok();
 }
 
-int main(int argc, char* argv[]) {
+int main() {  
   SET_VERBOSITY_LEVEL(verbosity_INFO);
-  td::set_default_failure_signal_handler();
-
   td::actor::ActorOwn<ValidatorEngineConsole> x;
-
-  td::OptionParser p;
-  p.set_description("console for validator for TON Blockchain");
-  p.add_option('h', "help", "prints_help", [&]() {
-    char b[10240];
-    td::StringBuilder sb(td::MutableSlice{b, 10000});
-    sb << p;
-    std::cout << sb.as_cslice().c_str();
-    std::exit(2);
-  });
-  p.add_option('V', "version", "shows validator-engine-console build information", [&]() {
-    std::cout << "validator-engine-console build information: [ Commit: " << GitMetadata::CommitSHA1()
-              << ", Date: " << GitMetadata::CommitDate() << "]\n";
-    std::exit(0);
-  });
-  p.add_checked_option('a', "address", "server address", [&](td::Slice arg) {
-    td::IPAddress addr;
-    TRY_STATUS(addr.init_host_port(arg.str()));
-    td::actor::send_closure(x, &ValidatorEngineConsole::set_remote_addr, addr);
-    return td::Status::OK();
-  });
-  p.add_option('k', "key", "private key", [&](td::Slice arg) {
-    td::actor::send_closure(x, &ValidatorEngineConsole::set_private_key, td::BufferSlice{arg});
-  });
-  p.add_option('p', "pub", "server public key", [&](td::Slice arg) {
-    td::actor::send_closure(x, &ValidatorEngineConsole::set_public_key, td::BufferSlice{arg});
-  });
-  p.add_option('r', "disable-readline", "disable readline",
-               [&]() { td::actor::send_closure(x, &ValidatorEngineConsole::set_readline_enabled, false); });
-  p.add_option('R', "enable-readline", "enable readline",
-               [&]() { td::actor::send_closure(x, &ValidatorEngineConsole::set_readline_enabled, true); });
-  p.add_checked_option('v', "verbosity", "set verbosity level", [&](td::Slice arg) {
-    verbosity = td::to_integer<int>(arg);
-    SET_VERBOSITY_LEVEL(VERBOSITY_NAME(FATAL) + verbosity);
-    return (verbosity >= 0 && verbosity <= 9) ? td::Status::OK() : td::Status::Error("verbosity must be 0..9");
-  });
-  p.add_option('c', "cmd", "schedule command", [&](td::Slice arg) {
-    td::actor::send_closure(x, &ValidatorEngineConsole::add_cmd, td::BufferSlice{arg});
-  });
-  p.add_option('t', "timeout", "timeout in batch mode", [&](td::Slice arg) {
-    auto d = td::to_double(arg);
-    td::actor::send_closure(x, &ValidatorEngineConsole::set_fail_timeout, td::Timestamp::in(d));
-  });
-  td::actor::Scheduler scheduler({2});
-
+  td::actor::Scheduler scheduler({8});
   scheduler.run_in_context([&] {
     x = td::actor::create_actor<ValidatorEngineConsole>("console");
-    auto S = p.run(argc, argv);
-    if (S.is_error()) {
-      std::cerr << S.move_as_error().message().str() << std::endl;
-      std::_Exit(2);
-    }
+    td::IPAddress addr;
+    addr.init_host_port("localhost:4441");
+    td::actor::send_closure(x, &ValidatorEngineConsole::set_remote_addr, addr);
+
+    td::actor::send_closure(x, &ValidatorEngineConsole::set_private_key, 
+      td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/client"});
+    td::actor::send_closure(x, &ValidatorEngineConsole::set_public_key, 
+      td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/server.pub"});
+
+    std::cout << "x.id = " << x.get().actor_info().get_name().c_str() << std::endl;
     td::actor::send_closure(x, &ValidatorEngineConsole::run);
   });
-  scheduler.run();
 
+  scheduler.run_in_context([&] {
+    td::actor::send_closure(x, &ValidatorEngineConsole::wait);
+  });
+
+  scheduler.run();
   return 0;
 }

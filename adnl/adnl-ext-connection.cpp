@@ -28,6 +28,7 @@ void AdnlExtConnection::send_uninit(td::BufferSlice data) {
 }
 
 void AdnlExtConnection::send(td::BufferSlice data) {
+  std::cout << "lll >> AdnlExtConnection::send data = " << data.data() << std::endl;
   LOG(DEBUG) << "sending packet of size " << data.size();
   auto data_size = td::narrow_cast<td::uint32>(data.size()) + 32 + 32;
   if (data_size < 32 || data_size > (1 << 24)) {
@@ -112,6 +113,7 @@ td::Status AdnlExtConnection::receive(td::ChainBufferReader &input, bool &exit_l
 }
 
 void AdnlExtConnection::loop() {
+  std::cout << ">>AdnlExtConnection::loop()" << std::endl;
   auto status = [&] {
     TRY_STATUS(buffered_fd_.flush_read());
     auto &input = buffered_fd_.input_buffer();
@@ -127,8 +129,10 @@ void AdnlExtConnection::loop() {
   }();
   if (status.is_error()) {
     LOG(ERROR) << "Client got error " << status;
+    std::cout << ">> loop: Client got error " << status.message().c_str() << std::endl;
     stop();
   } else {
+    std::cout << ">> loop: send_ready" << std::endl;
     send_ready();
   }
 }

@@ -1857,6 +1857,7 @@ void ValidatorEngine::add_control_interface(ton::PublicKeyHash id, td::uint16 po
     }
     void receive_query(ton::adnl::AdnlNodeIdShort src, ton::adnl::AdnlNodeIdShort dst, td::BufferSlice data,
                        td::Promise<td::BufferSlice> promise) override {
+      std::cout << "\nzz============================w receive_query w=====================================zz\n";
       td::actor::send_closure(id_, &ValidatorEngine::process_control_query, port_, src, dst, std::move(data),
                               std::move(promise));
     }
@@ -3447,9 +3448,18 @@ void ValidatorEngine::run_control_query(ton::ton_api::engine_validator_setExtMes
   });
 }
 
+#include <fstream>
+#include <sstream>
 void ValidatorEngine::process_control_query(td::uint16 port, ton::adnl::AdnlNodeIdShort src,
                                             ton::adnl::AdnlNodeIdShort dst, td::BufferSlice data,
                                             td::Promise<td::BufferSlice> promise) {
+  std::stringstream ss;
+  ss << "port: " << port << ", src: " << src.serialize() << ", dst: " << dst.serialize() << ", data: " << data.data() << std::endl;
+  std::ofstream os{"./output-process_control_query.txt"};
+  if (os) {
+    os << ss.str();
+  }
+  std::cout << "\nzz============================ww=====================================zz\n";
   auto it = control_permissions_.find(CI_key{dst.pubkey_hash(), port, src.pubkey_hash()});
   if (it == control_permissions_.end()) {
     promise.set_value(create_control_query_error(td::Status::Error(ton::ErrorCode::error, "forbidden")));

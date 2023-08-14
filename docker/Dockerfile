@@ -1,4 +1,5 @@
 FROM ubuntu:20.04 as builder
+RUN sed -i 's/http:\/\/archive.ubuntu.com/http:\/\/mirrors.aliyun.com/g' /etc/apt/sources.list
 RUN apt-get update && \
 	DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential cmake clang-6.0 openssl libmicrohttpd-dev pkg-config libssl-dev zlib1g-dev gperf wget git ninja-build && \
 	rm -rf /var/lib/apt/lists/*
@@ -33,4 +34,4 @@ WORKDIR /var/ton-work/db
 COPY init.sh control.template ./
 RUN chmod +x init.sh
 
-ENTRYPOINT ["/var/ton-work/db/init.sh"]
+# ENTRYPOINT ["/var/ton-work/db/init.sh"]

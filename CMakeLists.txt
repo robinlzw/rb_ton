@@ -511,26 +511,26 @@ target_link_libraries(test-rldp2 adnl adnltest dht rldp2 tl_api)
 add_executable(test-validator-session-state test/test-validator-session-state.cpp)
 target_link_libraries(test-validator-session-state adnl dht rldp validatorsession tl_api)
 
-#add_executable(test-node test/test-node.cpp)
-#target_link_libraries(test-node overlay tdutils tdactor adnl tl_api dht
+# add_executable(test-node test/test-node.cpp)
+# target_link_libraries(test-node overlay tdutils tdactor adnl tl_api dht
 #  catchain validatorsession)
 
 add_executable(test-catchain test/test-catchain.cpp)
 target_link_libraries(test-catchain overlay tdutils tdactor adnl adnltest rldp tl_api dht
   catchain )
-#add_executable(test-validator-session test/test-validator-session.cpp)
-#target_link_libraries(test-validator-session overlay tdutils tdactor adnl tl_api dht
+# add_executable(test-validator-session test/test-validator-session.cpp)
+# target_link_libraries(test-validator-session overlay tdutils tdactor adnl tl_api dht
 #  catchain validatorsession)
 add_executable(test-ton-collator test/test-ton-collator.cpp)
 target_link_libraries(test-ton-collator overlay tdutils tdactor adnl tl_api dht
   catchain validatorsession validator-disk ton_validator validator-disk )
-#add_executable(test-validator test/test-validator.cpp)
-#target_link_libraries(test-validator overlay tdutils tdactor adnl tl_api dht
+# add_executable(test-validator test/test-validator.cpp)
+# target_link_libraries(test-validator overlay tdutils tdactor adnl tl_api dht
 #    rldp catchain validatorsession ton-node validator ton_validator validator memprof ${JEMALLOC_LIBRARIES})
-#add_executable(test-ext-server test/test-ext-server.cpp)
-#target_link_libraries(test-ext-server tdutils tdactor adnl tl_api dht )
-#add_executable(test-ext-client test/test-ext-client.cpp)
-#target_link_libraries(test-ext-client tdutils tdactor adnl tl_api tl-lite-utils)
+# add_executable(test-ext-server test/test-ext-server.cpp)
+# target_link_libraries(test-ext-server tdutils tdactor adnl tl_api dht )
+# add_executable(test-ext-client test/test-ext-client.cpp)
+# target_link_libraries(test-ext-client tdutils tdactor adnl tl_api tl-lite-utils)
 
 add_executable(test-http test/test-http.cpp)
 target_link_libraries(test-http PRIVATE tonhttp)

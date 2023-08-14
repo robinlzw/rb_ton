@@ -1,30 +1,3 @@
-/* 
-    This file is part of TON Blockchain source code.
-
-    TON Blockchain is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License
-    as published by the Free Software Foundation; either version 2
-    of the License, or (at your option) any later version.
-
-    TON Blockchain is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with TON Blockchain.  If not, see <http://www.gnu.org/licenses/>.
-
-    In addition, as a special exception, the copyright holders give permission 
-    to link the code of portions of this program with the OpenSSL library. 
-    You must obey the GNU General Public License in all respects for all 
-    of the code used other than OpenSSL. If you modify file(s) with this 
-    exception, you may extend this exception to your version of the file(s), 
-    but you are not obligated to do so. If you do not wish to do so, delete this 
-    exception statement from your version. If you delete this exception statement 
-    from all source files in the program, then also delete it here.
-
-    Copyright 2017-2020 Telegram Systems LLP
-*/
 #pragma once
 #include "adnl/adnl-ext-client.h"
 #include "tl-utils/tl-utils.hpp"
@@ -58,13 +31,31 @@ class ValidatorEngineConsole : public td::actor::Actor {
 
   std::map<std::string, std::unique_ptr<QueryRunner>> query_runners_;
   void add_query_runner(std::unique_ptr<QueryRunner> runner) {
-    auto name = runner->name();
-    query_runners_[name] = std::move(runner);
+    std::cout << "00 runner = " << runner.get() << std::endl;
+    if (runner)
+    {
+      // static std::string name = runner->name();
+      // if (query_runners_.find(name) == query_runners_.end())
+      // {
+      //   std::cout << "name = " << name << std::endl;
+      //   query_runners_[name] = std::move(runner);
+      //   std::cout << "runner = " << runner.get() << std::endl;
+      //   std::cout << "query_runners_[name] = " << query_runners_[name].get() << std::endl;
+      // }
+      
+      query_runners_[runner->name()] = std::move(runner);
+      for (const auto & item : query_runners_)
+      {
+        std::cout << "item[" << item.first << "] = " << item.second.get() << std::endl;
+      }
+       
+    }
   }
 
  public:
   void conn_ready() {
     td::TerminalIO::out() << "conn ready\n";
+    std::cout << "conn ready\n";
     ready_ = true;
     running_queries_++;
     got_result();
@@ -116,8 +107,7 @@ class ValidatorEngineConsole : public td::actor::Actor {
   void show_help(std::string command, td::Promise<td::BufferSlice> promise);
   void show_license(td::Promise<td::BufferSlice> promise);
 
-  void parse_line(td::BufferSlice data);
-
+  void parse_line();
   ValidatorEngineConsole() {
   }
 
