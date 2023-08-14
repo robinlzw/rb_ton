@@ -126,7 +126,7 @@ class QueryRunner {
   };
   virtual std::string name() const = 0;
   virtual std::string help() const = 0;
-  virtual td::Status run(td::actor::ActorId<ValidatorEngineConsole> console) const = 0;
+  virtual td::Status run(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer) const = 0;
 };
 
 template <class T>
@@ -138,12 +138,8 @@ class QueryRunnerImpl : public QueryRunner {
   std::string help() const override {
     return T::get_help();
   }
-  td::Status run(td::actor::ActorId<ValidatorEngineConsole> console) const override {
-    std::cout << "QueryRunnerImpl::run()\n";
-    // td::actor::create_actor<T>("query test lll", std::move(console));
-    td::actor::create_actor<T>(PSTRING() << "query " << name(), std::move(console)).release();
-
-    std::cout << "QueryRunnerImpl::run create actor finish()\n";
+  td::Status run(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer) const override {
+    td::actor::create_actor<T>(PSTRING() << "query " << name(), std::move(console), std::move(tokenizer)).release();
     return td::Status::OK();
   }
   QueryRunnerImpl() {
@@ -152,11 +148,9 @@ class QueryRunnerImpl : public QueryRunner {
 
 class Query : public td::actor::Actor {
  public:
-  virtual ~Query() {
-    std::cout << "~Query()\n";
-  };
-  Query(td::actor::ActorId<ValidatorEngineConsole> console)
-      : console_(console) {
+  virtual ~Query() = default;
+  Query(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
+      : console_(console), tokenizer_(std::move(tokenizer)) {
   }
   void start_up() override;
   virtual td::Status run() = 0;
@@ -191,12 +185,13 @@ class Query : public td::actor::Actor {
 
  protected:
   td::actor::ActorId<ValidatorEngineConsole> console_;
+  Tokenizer tokenizer_;
 };
 
 class GetOverlaysStatsQuery : public Query {
  public:
-  GetOverlaysStatsQuery(td::actor::ActorId<ValidatorEngineConsole> console)
-      : Query(console) {
+  GetOverlaysStatsQuery(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
+      : Query(console, std::move(tokenizer)) {
   }
   td::Status run() override;
   td::Status send() override;

@@ -79,7 +79,10 @@ class ValidatorEngineConsole : public td::actor::Actor {
     ex_queries_.push_back(std::move(data));
     set_readline_enabled(false);
     std::cout << "ex_queries_.size() = " << ex_queries_.size() << std::endl;
-    parse_line();
+    if (ready_)
+    {
+      got_result();
+    }
   }
   void set_fail_timeout(td::Timestamp ts) {
     fail_timeout_ = ts;
@@ -110,7 +113,7 @@ class ValidatorEngineConsole : public td::actor::Actor {
   void show_help(std::string command, td::Promise<td::BufferSlice> promise);
   void show_license(td::Promise<td::BufferSlice> promise);
 
-  void parse_line();
+  void parse_line(td::BufferSlice data);
   ValidatorEngineConsole() {
   }
 

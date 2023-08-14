@@ -106,9 +106,10 @@ void ValidatorEngineConsole::got_result(bool success) {
   std::cout << "running_queries_ = " << running_queries_ << std::endl;
   std::cout << "ex_queries_.size() = " << ex_queries_.size() << std::endl;
   if (!running_queries_ && ex_queries_.size() > 0) {
+    std::cout << "lll ... prepare parse_line \n";
     auto data = std::move(ex_queries_[0]);
     ex_queries_.erase(ex_queries_.begin());
-    parse_line();
+    parse_line(std::move(data));
   }
   if (ex_mode_ && !running_queries_ && ex_queries_.size() == 0) {
     std::cout << "run finish one query, ex_queries_ is empty\n";
@@ -138,12 +139,16 @@ void ValidatorEngineConsole::show_license(td::Promise<td::BufferSlice> promise) 
   promise.set_value(td::BufferSlice{});
 }
 
-void ValidatorEngineConsole::parse_line() {
-  std::cout << ">> ValidatorEngineConsole::parse_line()\n";
+void ValidatorEngineConsole::parse_line(td::BufferSlice data) {
+  // std::cout << ">> ValidatorEngineConsole::parse_line()\n";
+  Tokenizer tokenizer(std::move(data));
+  // if (tokenizer.endl()) {
+  //   return;
+  // }
   for (const auto &item : query_runners_)
   {
     running_queries_++;
-    item.second->run(actor_id(this));
+    item.second->run(actor_id(this), std::move(tokenizer));
   }
 }
 
@@ -174,63 +179,11 @@ void ValidatorEngineConsole::set_public_key(td::BufferSlice file_name) {
 
 bool g_start_up = false;
 td::actor::ActorOwn<ValidatorEngineConsole> g_validator_engine_console_actor_own;
-void main_start_up()
-{
-  SET_VERBOSITY_LEVEL(verbosity_INFO);  
-  td::actor::Scheduler scheduler({8});
-  scheduler.run_in_context([&] {
-    g_validator_engine_console_actor_own = td::actor::create_actor<ValidatorEngineConsole>("console");
-    td::IPAddress addr;
-    addr.init_host_port("localhost:4441");
-    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::set_remote_addr, addr);
-
-    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::set_private_key, 
-      td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/client"});
-    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::set_public_key, 
-      td::BufferSlice{"/home/lzw/dataset/myLocalTon-dht/genesis/bin/certs/server.pub"});
-
-    std::cout << "x.id = " << g_validator_engine_console_actor_own.get().actor_info().get_name().c_str() << std::endl;
-    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::run);
-  });
-
-  scheduler.run_in_context([&] {
-    std::cout << "run_in_context" << std::endl;
-  });
-
-  auto sch = td::thread([&] {
-    while (scheduler.run(1)) {
-    }
-    scheduler.stop();
-  });
-  sch.join();
-
-  std::cout << "main_start_up return" << std::endl;
-}
-
-int run_main(const char * data, size_t size) {
-  std::cout << ">> run_main: data = " << data << ", size = " << size << std::endl;
-  if (!g_start_up)
-  {
-    main_start_up();
-    // main_start_up_v2();
-    std::cout << "main_start_up end" << std::endl;
-    g_start_up = true;
-  }
-  else
-  {
-    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::add_cmd, td::BufferSlice(data, size));
-  }
-  std::cout << "<< run_main" << std::endl;
-  return 0;
-}
-
 td::thread g_sch;
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t * data, size_t size) {
   std::cout << "LLVMFuzzerTestOneInput..." << std::endl;
-  // run_main((const char*)data, size);
   SET_VERBOSITY_LEVEL(verbosity_INFO);
-  td::actor::ActorOwn<ValidatorEngineConsole> x;
-  // g_scheduler.start();
   if (!g_start_up) {
     g_sch = td::thread([&] { g_scheduler.run(); });
     g_scheduler.run_in_context([&] {
@@ -252,7 +205,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t * data, size_t size) {
   }
 
   g_scheduler.run_in_context([&] {
-    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::add_cmd, td::BufferSlice{"xxx"});
+    td::actor::send_closure(g_validator_engine_console_actor_own, &ValidatorEngineConsole::add_cmd, td::BufferSlice((const char *)data, size));
   });
   sleep(4);
   std::cout << "=================================================\n\n" << std::endl;

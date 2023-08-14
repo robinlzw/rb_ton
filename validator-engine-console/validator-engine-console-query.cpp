@@ -86,8 +86,10 @@ td::Status GetOverlaysStatsQuery::run() {
 
 td::Status GetOverlaysStatsQuery::send() {
   std::cout << "GetOverlaysStatsQuery::send()\n";
-  auto b = ton::create_serialize_tl_object<ton::ton_api::engine_validator_getOverlaysStats>();
-  td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, std::move(b), create_promise());
+  // auto b = ton::create_serialize_tl_object<ton::ton_api::engine_validator_getOverlaysStats>();
+  // td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, std::move(b), create_promise());
+  auto name = tokenizer_.get_token<std::string>().move_as_ok();
+  td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, td::BufferSlice(name.c_str(), name.length()), create_promise());
   return td::Status::OK();
 }
 
