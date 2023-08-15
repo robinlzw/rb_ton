@@ -139,14 +139,15 @@ void ValidatorEngineConsole::show_license(td::Promise<td::BufferSlice> promise) 
 }
 
 void ValidatorEngineConsole::parse_line(td::BufferSlice data) {
-  // std::cout << ">> ValidatorEngineConsole::parse_line()\n";
-  Tokenizer tokenizer(std::move(data));
-  // if (tokenizer.endl()) {
-  //   return;
-  // }
   for (const auto &item : query_runners_)
   {
-    item.second->run(actor_id(this), std::move(tokenizer));
+    auto data_str = data.data();
+    std::cout << "lll >> parse_line: data_str = " << data_str << std::endl;
+    std::cout << "lll >> parse_line: strlen(data_str) = " << strlen(data_str) << std::endl;
+    std::string query_msg(data_str);
+    std::cout << "lll >> parse_line: query_msg.length() = " << query_msg.length() << std::endl;
+    std::cout << "lll >> parse_line: query_msg = " << query_msg << std::endl;
+    item.second->run(actor_id(this), query_msg);
   }
 }
 

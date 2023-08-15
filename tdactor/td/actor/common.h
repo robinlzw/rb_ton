@@ -149,7 +149,6 @@ class Scheduler {
   bool run() {
     start();
     while (schedulers_[0]->run(10)) {
-      std::cout << "while (schedulers_[0]->run(10)) \n";
     }
     return false;
   }

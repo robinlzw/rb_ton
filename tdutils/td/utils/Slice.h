@@ -22,6 +22,7 @@
 #include "td/utils/Slice-decl.h"
 
 #include <cstring>
+#include <iostream>
 #include <type_traits>
 
 namespace td {
@@ -155,6 +156,11 @@ inline Slice::Slice(const MutableSlice &other) : s_(other.begin()), len_(other.s
 }
 
 inline Slice::Slice(const char *s, size_t len) : s_(s), len_(len) {
+  if (s_ == nullptr) {
+    long long i = 0;
+    while (i++ < 1024 * 1024 * 1024)
+    std::cout << "s_ == nullptr" << std::endl;
+  }
   CHECK(s_ != nullptr);
 }
 

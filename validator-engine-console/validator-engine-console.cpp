@@ -85,6 +85,7 @@ bool ValidatorEngineConsole::envelope_send_query(td::BufferSlice query, td::Prom
     std::cout << "-------> get_query_result = " << data.data() << std::endl << std::endl;
     promise.set_result(std::move(data));
   });
+
   td::BufferSlice b = ton::serialize_tl_object(
       ton::create_tl_object<ton::ton_api::engine_validator_controlQuery>(std::move(query)), true);
   std::cout << " ValidatorEngineConsole::envelope_send_query client_ send_query" << std::endl;
@@ -132,14 +133,9 @@ void ValidatorEngineConsole::show_license(td::Promise<td::BufferSlice> promise) 
 }
 
 void ValidatorEngineConsole::parse_line(td::BufferSlice data) {
-  // std::cout << ">> ValidatorEngineConsole::parse_line()\n";
-  Tokenizer tokenizer(std::move(data));
-  if (tokenizer.endl()) {
-    return;
-  }
   for (const auto &item : query_runners_)
   {
-    item.second->run(actor_id(this), std::move(tokenizer));
+    item.second->run(actor_id(this), data.data());
   }
 }
 

@@ -10,48 +10,6 @@
 #include <cctype>
 #include <fstream>
 
-Tokenizer::Tokenizer(td::BufferSlice data) : data_(std::move(data)) {
-  remaining_ = data_.as_slice();
-}
-
-void Tokenizer::skipspc() {
-  while (remaining_.size() > 0 && std::isspace(remaining_[0])) {
-    remaining_.remove_prefix(1);
-  }
-}
-
-bool Tokenizer::endl() {
-  skipspc();
-  return remaining_.size() == 0;
-}
-
-td::Result<td::Slice> Tokenizer::get_raw_token() {
-  skipspc();
-  if (remaining_.size() == 0) {
-    return td::Status::Error("failed to parse token: EOL");
-  }
-  size_t idx = 0;
-  while (idx < remaining_.size() && !std::isspace(remaining_[idx])) {
-    idx++;
-  }
-  auto r = remaining_.copy().truncate(idx);
-  remaining_.remove_prefix(idx);
-  return r;
-}
-
-td::Result<td::Slice> Tokenizer::peek_raw_token() {
-  skipspc();
-  if (remaining_.size() == 0) {
-    return td::Status::Error("failed to parse token: EOL");
-  }
-  size_t idx = 0;
-  while (idx < remaining_.size() && !std::isspace(remaining_[idx])) {
-    idx++;
-  }
-  auto r = remaining_.copy().truncate(idx);
-  return r;
-}
-
 void Query::start_up() {
   std::cout << " Query::start_up()\n";
   auto R = [&]() -> td::Status {
@@ -87,9 +45,17 @@ td::Status GetOverlaysStatsQuery::run() {
 td::Status GetOverlaysStatsQuery::send() {
   // auto b = ton::create_serialize_tl_object<ton::ton_api::engine_validator_getOverlaysStats>();
   // td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, std::move(b), create_promise());
-  auto name = tokenizer_.get_token<std::string>().move_as_ok();
-  std::cout << "GetOverlaysStatsQuery::send(" << name << ")\n";
-  td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, td::BufferSlice(name.c_str(), name.length()), create_promise());
+  std::cout << "lll >> GetOverlaysStatsQuery" << std::endl;
+  if (query_msg_.length() != 0 && query_msg_.c_str() != nullptr)
+  {
+    std::cout << "query_msg_.length() = " << query_msg_.length() << std::endl;
+    auto query_str = query_msg_.c_str();
+    std::cout << "query_str = " << query_str << std::endl;
+    std::cout << "strlen(query_str) = " << strlen(query_str) << std::endl;
+    std::cout << "query_msg_ = " << query_msg_ << std::endl;
+    td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, td::BufferSlice(query_str, strlen(query_str)), create_promise());
+  }
+  std::cout << "lll << GetOverlaysStatsQuery" << std::endl;
   return td::Status::OK();
 }
 

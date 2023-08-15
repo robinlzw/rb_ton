@@ -1079,6 +1079,7 @@ void DhtServer::run_control_query(ton::ton_api::engine_validator_sign &query, td
 
 void DhtServer::process_control_query(ton::adnl::AdnlNodeIdShort src, ton::adnl::AdnlNodeIdShort dst,
                                       td::BufferSlice data, td::Promise<td::BufferSlice> promise) {
+  std::cout << "lll >> DhtServer::process_control_query\n";
   auto G = ton::fetch_tl_object<ton::ton_api::engine_validator_controlQuery>(std::move(data), true);
   if (G.is_error()) {
     promise.set_error(G.move_as_error_prefix("failed to parse validator query: "));
