@@ -23,7 +23,6 @@ class ValidatorEngineConsole : public td::actor::Actor {
   bool inited_ = false;
 
   td::Timestamp fail_timeout_;
-  td::uint32 running_queries_ = 0;
   bool ex_mode_ = false;
   std::vector<td::BufferSlice> ex_queries_;
 
@@ -57,7 +56,6 @@ class ValidatorEngineConsole : public td::actor::Actor {
     td::TerminalIO::out() << "conn ready\n";
     std::cout << "conn ready\n";
     ready_ = true;
-    running_queries_++;
     got_result();
   }
   void conn_closed() {
@@ -92,7 +90,7 @@ class ValidatorEngineConsole : public td::actor::Actor {
     if (fail_timeout_.is_in_past()) {
       std::_Exit(7);
     }
-    if (ex_mode_ && !running_queries_ && ex_queries_.size() == 0) {
+    if (ex_mode_ && ex_queries_.size() == 0) {
       std::_Exit(0);
     }
     alarm_timestamp().relax(fail_timeout_);

@@ -102,16 +102,15 @@ void ValidatorEngineConsole::got_result(bool success) {
     // std::_Exit(2);
     return;
   }
-  running_queries_--;
-  std::cout << "running_queries_ = " << running_queries_ << std::endl;
+
   std::cout << "ex_queries_.size() = " << ex_queries_.size() << std::endl;
-  if (!running_queries_ && ex_queries_.size() > 0) {
+  if (ex_queries_.size() > 0) {
     std::cout << "lll ... prepare parse_line \n";
     auto data = std::move(ex_queries_[0]);
     ex_queries_.erase(ex_queries_.begin());
     parse_line(std::move(data));
   }
-  if (ex_mode_ && !running_queries_ && ex_queries_.size() == 0) {
+  if (ex_mode_ && ex_queries_.size() == 0) {
     std::cout << "run finish one query, ex_queries_ is empty\n";
     // std::_Exit(0);
   }
@@ -147,7 +146,6 @@ void ValidatorEngineConsole::parse_line(td::BufferSlice data) {
   // }
   for (const auto &item : query_runners_)
   {
-    running_queries_++;
     item.second->run(actor_id(this), std::move(tokenizer));
   }
 }
@@ -183,6 +181,8 @@ td::thread g_sch;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t * data, size_t size) {
   std::cout << "LLVMFuzzerTestOneInput..." << std::endl;
+  if (size < 2) return 0;
+
   SET_VERBOSITY_LEVEL(verbosity_INFO);
   if (!g_start_up) {
     g_sch = td::thread([&] { g_scheduler.run(); });

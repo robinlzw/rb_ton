@@ -98,14 +98,13 @@ void ValidatorEngineConsole::got_result(bool success) {
   if (!success && ex_mode_) {
     std::_Exit(2);
   }
-  running_queries_--;
-  if (!running_queries_ && ex_queries_.size() > 0) {
+  if (ex_queries_.size() > 0) {
     auto data = std::move(ex_queries_[0]);
     ex_queries_.erase(ex_queries_.begin());
     parse_line(std::move(data));
     sleep(4);
   }
-  if (ex_mode_ && !running_queries_ && ex_queries_.size() == 0) {
+  if (ex_mode_ && ex_queries_.size() == 0) {
     std::_Exit(0);
   }
 }
@@ -140,7 +139,6 @@ void ValidatorEngineConsole::parse_line(td::BufferSlice data) {
   }
   for (const auto &item : query_runners_)
   {
-    running_queries_++;
     item.second->run(actor_id(this), std::move(tokenizer));
   }
 }
