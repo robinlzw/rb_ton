@@ -1,77 +1,115 @@
-This document collects some recommendations and best practices that could be followed when developing new smart contracts for TON Blockchain.
+本文档汇集了一些建议和最佳实践，供在开发新的 TON 区块链智能合约时参考。
 
-1. Internal messages
-~~~~~~~~~~~~~~~~~~~~
+1. 内部消息
+~~~~~~~~~~~~
 
-Smart contracts interact with each other by sending the so-called *internal messages*. When an internal message reaches its intended destination, an ordinary transaction is created on behalf of the destination account, and the internal message is processed as specified by the code and the persistent data of this account (smart contract). In particular, the processing transaction can create one or several outbound internal messages, some of which could be addressed to the source address of the internal message being processed. This can be used to create simple "client-server applications", when a query is incapsulated in an internal message and sent to another smart contract, which processes the query and sends back a response, again as an internal message.
+智能合约通过发送所谓的 *内部消息* 进行交互。当内部消息到达其预定的目的地时，会为目标账户创建一个普通的交易，并按该账户（智能合约）的代码和持久数据处理该内部消息。
+特别地，处理交易可以创建一个或多个出站内部消息，其中一些可能会发回给处理中的内部消息的源地址。这可以用来创建简单的“客户端-服务器应用程序”，
+当查询被封装在内部消息中并发送到另一个智能合约时，该智能合约处理查询并以内部消息形式返回响应。
 
-This approach leads to the necessity of distinguishing whether an internal message is intended as a "query" or as a "response", or doesn't require any additional processing (like a "simple money transfer"). Furthermore, when a response is received, there must be a means to understand to which query it corresponds.
+这就需要区分内部消息是作为“查询”还是作为“响应”，或者不需要任何额外处理（例如“简单的资金转移”）。此外，当收到响应时，必须有方法来理解它对应于哪个查询。
 
-In order to achieve this goal, the following recommended internal message layout can be used (notice that the TON Blockchain does not enforce any restrictions on the message body, so these are indeed just recommendations):
+为了实现这个目标，可以使用以下推荐的内部消息布局（注意，TON 区块链不对消息体施加任何限制，因此这些实际上只是建议）：
 
-0) The body of the message can be embedded into the message itself, or be stored in a separate cell referred to from the message, as indicated by the TL-B scheme fragment
+0) 消息体可以嵌入到消息本身中，或者存储在消息所引用的单独单元中，如 TL-B 方案片段所示：
 
+  ```
   message$_ {X:Type} ... body:(Either X ^X) = Message X;
+  ```
 
-The receiving smart contract should accept at least internal messages with embedded message bodies (whenever they fit into the cell containing the message). If it accepts message bodies in separate cells (using the `right` constructor of `(Either X ^X)`), the processing of the inbound message should not depend on the specific embedding option chosen for the message body. On the other hand, it is perfectly valid not to support message bodies in separate cells at all for simpler queries and responses.
+接收的智能合约应该至少接受嵌入消息体的内部消息（只要它们适合包含消息的单元）。如果它接受单独单元中的消息体（使用 `(Either X ^X)` 的 `right` 构造器），
+则入站消息的处理不应依赖于为消息体选择的具体嵌入选项。另一方面，对于更简单的查询和响应，完全可以不支持单独单元中的消息体。
 
-1) The message body typically begins with the following fields:
+1) 消息体通常以以下字段开始：
 
-* A 32-bit (big-endian) unsigned integer *op*, identifying the "operation" to be performed, or the "method" of the smart contract to be invoked.
-* A 64-bit (big-endian) unsigned integer *query_id*, used in all query-response internal messages to indicate that a response is related to a query (the *query_id* of a response must be equal to the *query_id* of the corresponding query). If *op* is not a query-response method (e.g., it invokes a method that is not expected to send an answer), then *query_id* may be omitted.
-* The remainder of the message body is specific for each supported value of *op*.
+* 一个 32 位（大端）无符号整数 *op*，用于识别要执行的“操作”或要调用的智能合约的“方法”。
+* 一个 64 位（大端）无符号整数 *query_id*，在所有查询-响应内部消息中，用于指示响应与查询的关系（响应的 *query_id* 必须等于相应查询的 *query_id*）。
+如果 *op* 不是查询-响应方法（例如，它调用的是不期望返回答案的方法），则可以省略 *query_id*。
+* 消息体的其余部分对每个支持的 *op* 值都是特定的。
 
-2) If *op* is zero, then the message is a "simple transfer message with comment". The comment is contained in the remainder of the message body (without any *query_id* field, i.e., starting from the fifth byte). If it does not begin with the byte 0xff, the comment is a text one; it can be displayed "as is" to the end user of a wallet (after filtering invalid and control characters and checking that it is a valid UTF-8 string). For instance, users may indicate the purpose of a simple transfer from their wallet to the wallet of another user in this text field. On the other hand, if the comment begins with the byte 0xff, the remainder is a "binary comment", which should not be displayed to the end user as text (only as hex dump if necessary). The intended use of "binary comments" is, e.g., to contain a purchase identifier for payments in a store, to be automatically generated and processed by the store's software.
+2) 如果 *op* 为零，则消息是“简单转账消息带注释”。注释包含在消息体的其余部分（没有 *query_id* 字段，即从第五个字节开始）。
+如果它不以字节 0xff 开头，则注释是文本注释；它可以“原样”显示给钱包的最终用户（在过滤无效和控制字符后，并检查它是否是有效的 UTF-8 字符串）。
+例如，用户可以在这个文本字段中指明从他们的钱包到另一个用户的钱包的简单转账的目的。
+另一方面，如果注释以字节 0xff 开头，则其余部分是“二进制注释”，不应作为文本显示给最终用户（如有必要，仅作为十六进制转储显示）。
+例如，“二进制注释”的预期用途是包含商店的购买标识符，由商店的软件自动生成和处理。
 
-Most smart contracts should not perform non-trivial actions or reject the inbound message on receiving a "simple transfer message". In this way, once *op* is found to be zero, the smart contract function for processing inbound internal messages (usually called `recv_internal()`) should immediately terminate with a zero exit code indicating success (e.g., by throwing exception 0, if no custom exception handler has been installed by the smart contract). This will lead to the receiving account being credited with the value transferred by the message without any further effect.
+大多数智能合约不应执行复杂的操作或在收到“简单转账消息”时拒绝入站消息。这样，一旦 *op* 被发现为零，
+处理入站内部消息的智能合约函数（通常称为 `recv_internal()`）应立即以零退出代码指示成功（例如，如果智能合约没有安装自定义异常处理程序，则抛出异常 0）。
+这将导致接收账户被记入消息转账的值，而不会有任何进一步的效果。
 
-3) A "simple transfer message without comment" has an empty body (without even an *op* field). The above considerations apply to such messages as well. Note that such messages should have their bodies embedded into the message cell.
+3) “没有注释的简单转账消息”具有空消息体（甚至没有 *op* 字段）。上述考虑也适用于这样的消息。请注意，这些消息的消息体应嵌入在消息单元中。
 
-4) We expect "query" messages to have an *op* with the high-order bit clear, i.e., in the range 1 .. 2^31-1, and "response" messages to have an *op* with the high-order bit set, i.e., in the range 2^31 .. 2^32-1. If a method is neither a query nor a response (so that the corresponding message body does not contain a *query_id* field), it should use an *op* in the "query" range 1 .. 2^31 - 1.
+4) 我们期望“查询”消息的 *op* 高位清零，即在 1 .. 2^31-1 范围内，而“响应”消息的 *op* 高位设定，即在 2^31 .. 2^32-1 范围内。
+如果一个方法既不是查询也不是响应（因此相应的消息体不包含 *query_id* 字段），它应该使用“查询”范围 1 .. 2^31 - 1 内的 *op*。
 
-5) There are some "standard" response messages with the *op* equal to 0xffffffff and 0xfffffffe. In general, the values of *op* from 0xfffffff0 to 0xffffffff are reserved for such standard responses.
+5) 有一些“标准”响应消息，其 *op* 等于 0xffffffff 和 0xfffffffe。一般来说，*op* 从 0xfffffff0 到 0xffffffff 的值保留用于这些标准响应。
 
-* op = 0xffffffff means "operation not supported". It is followed by the 64-bit *query_id* extracted from the original query, and the 32-bit *op* of the original query. All but the simplest smart contracts should return this error when they receive a query with an unknown *op* in the range 1 .. 2^31-1.
-* op = 0xfffffffe means "operation not allowed". It is followed by the 64-bit *query_id* of the original query, followed by the 32-bit *op* extracted from the original query.
+* *op* = 0xffffffff 表示“操作不支持”。它后跟从原始查询提取的 64 位 *query_id* 和原始查询的 32 位 *op*。
+所有但最简单的智能合约在收到范围 1 .. 2^31-1 的未知 *op* 查询时应返回此错误。
+* *op* = 0xfffffffe 表示“操作不允许”。它后跟原始查询的 64 位 *query_id*，然后是原始查询的 32 位 *op*。
 
-Notice that unknown "responses" (with an *op* in the range 2^31 .. 2^32-1) should be ignored (in particular, no response with an *op* equal to 0xffffffff should be generated in response to them), just as unexpected bounced messages (with "bounced" flag set). 
+注意，未知的“响应”（*op* 在 2^31 .. 2^32-1 范围内）应被忽略（特别是，不应对它们生成 *op* 等于 0xffffffff 的响应），就像意外的回弹消息（设置了“回弹”标志）一样。
 
-2. Paying for processing queries and sending responses
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2. 支付查询处理和发送响应的费用
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In general, if a smart contract wants to send a query to another smart contract, it should pay for sending the internal message to the destination smart contract (message forwarding fees), for processing this message at the destination (gas fees), and for sending back the answer if required (message forwarding fees).
+一般而言，如果智能合约想要向另一个智能合约发送查询，它应支付发送内部消息到目标智能合约的费用（消息转发费用）、处理该消息的费用（气体费用）以及在需要时发送回响应的费用（消息转发费用）。
 
-In most cases, the sender will attach a small amount of Grams (e.g., one Gram) to the internal message (sufficient to pay for the processing of this message), and set its "bounce" flag (i.e., send a bounceable internal message); the receiver will return the unused portion of the received value with the answer (deducting message forwarding fees from it). This is normally accomplished by invoking SENDRAWMSG with mode=64 (cf. Appendix A of TON VM documentation).
+在大多数情况下，发送方会将少量的 Grams（例如，一 Gram）附加到内部消息上（足以支付此消息的处理费用），并设置其“回弹”标志（即，发送可回弹的内部消息）；
+接收方将在答案中返回未使用的部分（从中扣除消息转发费用）。这通常通过调用 SENDRAWMSG 并设置 mode=64 来实现（参见 TON VM 文档的附录 A）。
 
-If the receiver is unable to parse the received message and terminates with a non-zero exit code (for example, because of an unhandled cell deserialization exception), the message will be automatically "bounced" back to its sender, with the "bounce" flag cleared and the "bounced" flag set. The body of the bounced message will be the same as that of the original message; therefore, it is important to check the "bounced" flag of incoming internal messages before parsing the *op* field in the smart contract and processing the corresponding query (otherwise there is a risk that the query contained in a bounced message will be processed by its original sender as a new separate query). If the "bounced" flag is set, special code could find out which query has failed (e.g., by deserializing *op* and *query_id* from the bounced message) and take appropriate action. A simpler smart contract might simply ignore all bounced messages (terminate with zero exit code if "bounced" flag is set).
+如果接收方无法解析收到的消息并以非零退出代码终止（例如，因为未处理的单元反序列化异常），消息将自动“回弹”回到发送方，标志设置为“回弹”，标志清除。
+“回弹”消息的主体将与原始消息相同；因此，在智能合约中解析 *op* 字段并处理相应查询之前，检查入站内部消息的“回弹”标志非常重要（否则可能会将回弹消息中的查询作为新的单独查询由原始发送方处理）。
+如果设置了“回弹”标志，则特殊代码可以找出哪个查询失败（例如，通过从回弹消息中反序列化 *op* 和 *query_id*）并采取适当的措施。更简单的智能合约可以简单地忽略所有回弹消息（如果“回弹”标志设置则以零退出代码终止）。
 
-On the other hand, the receiver might parse the incoming query successfully and find out that the requested method *op* is not supported, or that another error condition is met. Then a response with *op* equal to 0xffffffff or another appropriate value should be sent back, using SENDRAWMSG with mode=64 as mentioned above.
+另一方面，接收方可能会成功解析入站查询并发现请求的方法 *op* 不受支持，或满足其他错误条件。
+在这种情况下，应该发送一个 *op* 等于 0xffffffff 或其他适当值的响应，使用 SENDRAWMSG 并设置 mode=64，如前所述。
 
-In some situations, the sender wants both to transfer some value to the sender and to receive either a confirmation or an error message. For instance, the validator elections smart contract receives an election participation request along with the stake as the attached value. In such cases, it makes sense to attach, say, one extra Gram to the intended value. If there is an error (e.g., the stake may not be accepted for any reason), the full received amount (minus the processing fees) should be returned to the sender along with an error message (e.g., by using SENDRAWMSG with mode=64 as explained before). In the case of success, the confirmation message is created and exactly one Gram is sent back (with the message transferring fees deducted from this value; this is mode=1 of SENDRAWMSG).
+在某些情况下，发送方希望同时转移一些价值并收到确认或错误消息。例如，验证者选举智能合约接收一个选举参与请求以及作为附加值的质押。
+在这种情况下，将额外的一个 Gram 附加到预期的价值是有意义的。
+如果出现错误（例如，质押由于任何原因无法接受），应将收到的全部金额（减去处理费用）连同错误消息一起退还给发送方（例如，通过使用 SENDRAWMSG 并设置 mode=64）。
+如果成功，则会创建确认消息并返回准确的一 Gram（从该金额中扣除消息转移费用；这是 SENDRAWMSG 的 mode=1）。
 
-3. Using non-bounceable messages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+3. 使用不可回弹的消息
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-Almost all internal messages sent between smart contracts should be bounceable, i.e., should have their "bounce" bit set. Then, if the destination smart contract does not exist, or if it throws an unhandled exception while processing this message, the message will be "bounced" back carrying the remainder of the original value (minus all message transfer and gas fees). The bounced message will have the same body, but with the "bounce" flag cleared and the "bounced" flag set. Therefore, all smart contracts should check the "bounced" flag of all inbound messages and either silently accept them (by immediately terminating with a zero exit code) or perform some special processing to detect which outbound query has failed. The query contained in the body of a bounced message should never be executed.
+几乎所有在智能合约之间发送的内部消息都应该是可回弹的，即应该设置“回弹”位。
+这样，如果目标智能合约不存在，或者在处理消息时抛出未处理的异常，消息将被“回弹”回，携带原始值的剩余部分（减去所有消息转移和气体费用）。
+回弹消息将具有相同的主体，但“回弹”标志设置，且“回弹”标志清除。
+因此，所有智能合约都应该检查所有入站消息的“回弹”标志，或静默接受它们（通过立即以零退出代码终止），或执行一些特殊处理来
 
-On some occasions, non-bounceable internal messages must be used. For instance, new accounts cannot be created without at least one non-bounceable internal message sent to them. Unless this message contains a StateInit with the code and data of the new smart contract, it does not make sense to have a non-empty body in a non-bounceable internal message.
+检测哪个出站查询失败。回弹消息主体中的查询不应执行。
 
-It is a good idea not to allow the end user (e.g., of a wallet) to send unbounceable messages carrying large value (e.g., more than five Grams), or at least to warn them if they try this. It is a better idea to send a small amount first, then initialize the new smart contract, and then send a larger amount.
+在某些情况下，必须使用不可回弹的内部消息。例如，新账户不能在没有至少一个发送到其的不可回弹内部消息的情况下创建。
+除非该消息包含新智能合约的代码和数据的 StateInit，否则在不可回弹的内部消息中具有非空消息体没有意义。
 
-4. External messages
-~~~~~~~~~~~~~~~~~~~~
+建议不要允许最终用户（例如钱包用户）发送携带大额价值（例如，超过五 Gram）的不可回弹消息，或者至少在他们尝试时警告他们。
+更好的做法是首先发送少量金额，然后初始化新智能合约，然后再发送较大的金额。
 
-External messages are sent from the outside to the smart contracts residing in the TON Blockchain to make them perform certain actions. For instance, a wallet smart contract expects to receive external messages containing orders (e.g., internal messages to be sent from the wallet smart contract) signed by the wallet's owner; when such an external message is received by the wallet smart contract, it first checks the signature, then accepts the message (by running the TVM primitive ACCEPT), and then performs whatever actions are required.
+4. 外部消息
+~~~~~~~~~~~~
 
-Notice that all external messages must be protected against replay attacks. The validators normally remove an external message from the pool of suggested external messages (received from network); however, in some situations another validator could process the same external message twice (thus creating a second transaction for the same external message, leading to the duplication of the original action). Even worse, a malicious actor could extract the external message from the block containing the processing transaction and re-send it later. This could force a wallet smart contract to repeat a payment, for example.
+外部消息是从外部发送到 TON 区块链上托管的智能合约，以使它们执行某些操作。
+例如，钱包智能合约期望接收包含订单的外部消息（例如，要从钱包智能合约发送的内部消息），这些订单由钱包的所有者签名；
+当钱包智能合约收到这样的外部消息时，它首先检查签名，然后接受消息（通过运行 TVM 原语 ACCEPT），然后执行所需的操作。
 
-The simplest way to protect smart contracts from replay attacks related to external messages is to store a 32-bit counter *cur-seqno* in the persistent data of the smart contract, and to expect a *req-seqno* value in (the signed part of) any inbound external messages. Then an external message is ACCEPTed only if both the signature is valid and *req-seqno* equals *cur-seqno*. After successful processing, the *cur-seqno* value in the persistent data is increased by one, so the same external message will never be accepted again.
+请注意，所有外部消息必须保护免受重放攻击。验证者通常会从建议的外部消息池中删除外部消息（从网络接收）；
+然而，在某些情况下，另一个验证者可能会处理相同的外部消息两次（从而为相同的外部消息创建第二个交易，导致原始操作的重复）。
+更糟糕的是，恶意行为者可能会从包含处理交易的区块中提取外部消息，并在稍后重新发送。这可能会迫使钱包智能合约重复支付。
 
-One could also include an *expire-at* field in the external message, and accept an external message only if the current Unix time is less than the value of this field. This approach can be used in conjuction with *seqno*; alternatively, the receiving smart contract could store the set of (the hashes of) all recent (not expired) accepted external messages in its persistent data, and reject a new external message if it is a duplicate of one of the stored messages. Some garbage collecting of expired messages in this set should also be performed to avoid bloating the persistent data.
+保护智能合约免受与外部消息相关的重放攻击的最简单方法是将 32 位计数器 *cur-seqno* 存储在智能合约的持久数据中，并在任何入站外部消息（如有需要）中期待 *req-seqno* 值。
+然后，只有当签名有效且 *req-seqno* 等于 *cur-seqno* 时，外部消息才会被 ACCEPT。
+在成功处理后，持久数据中的 *cur-seqno* 值会增加 1，因此相同的外部消息永远不会被再次接受。
 
-In general, an external message begins with a 256-bit signature (if needed), a 32-bit *req-seqno* (if needed), a 32-bit *expire-at* (if needed), and possibly a 32-bit *op* and other required parameters depending on *op*. The layout of external messages does not need to be as standardized as that of the internal messages because external messages are not used for interaction between different smart contracts (written by different developers and managed by different owners).
+还可以在外部消息中包含 *expire-at* 字段，并且仅在当前 Unix 时间小于该字段的值时接受外部消息。这种方法可以与 *seqno* 一起使用；
+或者，接收智能合约可以将所有最近（未过期）接受的外部消息的哈希集合存储在其持久数据中，如果新外部消息与其中之一重复，则拒绝它。还应进行一些过期消息的垃圾回收，以避免持久数据膨胀。
 
-5. Get-methods
-~~~~~~~~~~~~~~
+一般来说，外部消息以 256 位签名（如果需要）、32 位 *req-seqno*（如果需要）、32 位 *expire-at*（如果需要），以及可能的 32 位 *op* 和其他根据 *op* 需要的参数开始。
+外部消息的布局不需要像内部消息那样标准化，因为外部消息不是用于不同智能合约之间的交互（由不同的开发人员编写和管理）。
 
-Some smart contracts are expected to implement certain well-defined get-methods. For instance, any subdomain resolver smart contract for TON DNS is expected to implement the get-method "dnsresolve". Custom smart contracts may define their specific get-methods. Our only general recommendation at this point is to implement the get-method "seqno" (without parameters) that returns the current *seqno* of a smart contract that uses sequence numbers to prevent replay attacks related to inbound external methods, whenever such a method makes sense.
+5. 获取方法
+~~~~~~~~~~~~
+
+某些智能合约预期实现某些明确定义的获取方法。例如，任何用于 TON DNS 的子域解析智能合约都应实现 get-method "dnsresolve"。
+自定义智能合约可以定义其特定的获取方法。
+我们目前唯一的一般建议是实现 get-method "seqno"（无参数），返回使用序列号来防止与入站外部方法相关的重放攻击的智能合约的当前 *seqno*，只要这种方法有意义。

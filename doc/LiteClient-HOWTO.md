@@ -1,62 +1,64 @@
-The aim of this document is to provide step-by-step instructions for compiling and creating a simple smart contract (a simple wallet) in the TON Blockchain Test Network using the TON Blockchain Lite Client and associated software.
+### 目标
 
-Download and installation instructions may be found in README. We assume here that the Lite Client is already properly downloaded, compiled and installed.
+本文件旨在提供在 TON 区块链测试网络中编译和创建简单智能合约（如简单钱包）的逐步说明，使用 TON 区块链轻客户端及其相关软件。
 
-1. Smart-contract addresses
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+有关下载和安装说明，请参见 README。我们在此假设 Lite 客户端已经正确下载、编译和安装。
 
-Smart-contract addresses in the TON Network consist of two parts: (a) the workchain ID (a signed 32-bit integer) and (b) the address inside the workchain (64-512 bits depending on the workchain). Currently, only the masterchain (workchain_id=-1) and occasionally the basic workchain (workchain_id=0) are running in the TON Blockchain Test Network. Both of them have 256-bit addresses, so we henceforth assume that workchain_id is either 0 or -1 and that the address inside the workchain is exactly 256-bit.
+### 1. 智能合约地址
 
-Under the conditions stated above, the smart-contract address can be represented in the following forms:
+TON 网络中的智能合约地址由两个部分组成：(a) 工作链 ID（一个签名的 32 位整数）和 (b) 工作链内部的地址（根据工作链的不同为 64-512 位）。目前，TON 区块链测试网络中运行的仅有主链（workchain_id=-1）和偶尔的基础工作链（workchain_id=0）。这两者都有 256 位的地址，因此我们假设工作链 ID 为 0 或 -1，并且工作链内部的地址恰好是 256 位。
 
-A) "Raw": <decimal workchain_id>:<64 hexadecimal digits with address>
-B) "User-friendly", which is obtained by first generating:
-- one tag byte (0x11 for "bounceable" addresses, 0x51 for "non-bounceable"; add +0x80 if the address should not be accepted by software running in the production network)
-- one byte containing a signed 8-bit integer with the workchain_id (0x00 for the basic workchain, 0xff for the masterchain)
-- 32 bytes containing 256 bits of the smart-contract address inside the workchain (big-endian)
-- 2 bytes containing CRC16-CCITT of the previous 34 bytes
+在上述条件下，智能合约地址可以表示为以下形式：
 
-In case B), the 36 bytes thus obtained are then encoded using base64 (i.e., with digits, upper- and lowercase Latin letters, '/' and '+') or base64url (with '_' and '-' instead of '/' and '+'), yielding 48 printable non-space characters.
+A) "原始"：<十进制工作链 ID>:<64 个十六进制数字的地址>
 
-Example:
+B) "用户友好"：首先生成：
+- 一个标记字节（对于 "可回退" 地址为 0x11，对于 "不可回退" 地址为 0x51；如果地址不应被生产网络中的软件接受，添加 +0x80）
+- 一个包含签名 8 位整数的字节（基础工作链为 0x00，主链为 0xff）
+- 32 个字节包含 256 位的智能合约地址（大端格式）
+- 2 个字节包含前 34 个字节的 CRC16-CCITT
 
-The "test giver" (a special smart contract residing in the masterchain of the Test Network that gives up to 20 test Grams to anybody who asks) has the address
+在 B) 的情况下，生成的 36 个字节然后使用 base64（即，使用数字、大写和小写拉丁字母、'/' 和 '+'）或 base64url（使用 '_' 和 '-' 代替 '/' 和 '+'）进行编码，得到 48 个可打印的非空格字符。
+
+示例：
+
+"测试给予者"（一个特殊的智能合约，位于测试网络的主链中，给任何请求者提供最多 20 个测试 Gram）具有以下地址：
 
 -1:fcb91a3a3816d0f7b8c2c76108b8a9bc5a6b7a55bd79f8ab101c52db29232260
 
-in the "raw" form (notice that uppercase Latin letters 'A'..'F' may be used instead of 'a'..'f')
+在 "原始" 形式中（注意大写拉丁字母 'A'..'F' 也可以使用 'a'..'f'）
 
-and
+以及
 
-kf/8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny (base64) 
-kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny (base64url)
+kf/8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny（base64）
+kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny（base64url）
 
-in the "user-friendly" form (to be displayed by user-friendly clients). Notice that both forms (base64 and base64url) are valid and must be accepted.
+在 "用户友好" 形式中（供用户友好的客户端显示）。注意这两种形式（base64 和 base64url）都是有效的，并且都必须被接受。
 
-Incidentally, other binary data related to the TON Blockchain have similar "armored" base64 representations, differing by their first bytes. For example, the ubiquitious 256-bit Ed25519 public keys are represented by first creating a 36-byte sequence as follows:
-- one tag byte 0x3E, meaning that this is a public key
-- one tag byte 0xE6, meaning that this is a Ed25519 public key
-- 32 bytes containing the standard binary representation of the Ed25519 public key
-- 2 bytes containing the big-endian representation of CRC16-CCITT of the previous 34 bytes.
+顺便提一下，TON 区块链的其他二进制数据也有类似的 "装甲" base64 表示，区别在于它们的首字节。例如，广泛使用的 256 位 Ed25519 公钥表示为首先创建一个 36 字节的序列，如下：
+- 一个标记字节 0x3E，表示这是一个公钥
+- 一个标记字节 0xE6，表示这是一个 Ed25519 公钥
+- 32 字节包含 Ed25519 公钥的标准二进制表示
+- 2 字节包含前 34 个字节的 CRC16-CCITT 的大端表示
 
-The resulting 36-byte sequence is converted into a 48-character base64 or base64url string in the standard fashion. For example, the Ed25519 public key E39ECDA0A7B0C60A7107EC43967829DBE8BC356A49B9DFC6186B3EAC74B5477D (usually represented by a sequence of 32 bytes 0xE3, 0x9E, ..., 0x7D) has the following "armored" representation:
+生成的 36 字节序列转换为 48 字符的 base64 或 base64url 字符串。例如，Ed25519 公钥 E39ECDA0A7B0C60A7107EC43967829DBE8BC356A49B9DFC6186B3EAC74B5477（通常表示为 32 字节序列 0xE3, 0x9E, ..., 0x7D）具有以下 "装甲" 表示：
 
 Pubjns2gp7DGCnEH7EOWeCnb6Lw1akm538YYaz6sdLVHfRB2
 
-2. Inspecting the state of a smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### 2. 检查智能合约的状态
 
-Inspecting the state of smart contracts with the aid of the TON Lite Client is easy. For the sample smart contract described above, you would run the Lite Client and enter the following commands:
-
+使用 TON Lite 客户端检查智能合约的状态非常简单。对于上述示例智能合约，您可以运行 Lite 客户端并输入以下命令：
+```
 > last
 ...
 > getaccount -1:fcb91a3a3816d0f7b8c2c76108b8a9bc5a6b7a55bd79f8ab101c52db29232260
 or
 > getaccount kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny
-
+```
 You will see something like this:
 
 ------------------------------------
+```
 got account state for -1 : FCB91A3A3816D0F7B8C2C76108B8A9BC5A6B7A55BD79F8AB101C52DB29232260 with respect to blocks (-1,8000000000000000,2075):BFE876CE2085274FEDAF1BD80F3ACE50F42B5A027DF230AD66DCED1F09FB39A7:522C027A721FABCB32574E3A809ABFBEE6A71DE929C1FA2B1CD0DDECF3056505
 account state is (account
   addr:(addr_std
@@ -92,32 +94,35 @@ x{CFFFCB91A3A3816D0F7B8C2C76108B8A9BC5A6B7A55BD79F8AB101C52DB2923226020680B0C2EC
  x{FF0020DD2082014C97BA9730ED44D0D70B1FE0A4F260D31F01ED44D0D31FD166BAF2A1F8000120D74A8E11D307D459821804A817C80073FB0201FB00DED1A4C8CB1FC9ED54}
  x{00000003}
 last transaction lt = 2310000001 hash = 73F89C6F8910F598AD84504A777E5945C798AC8C847FF861C090109665EAC6BA
+```
 ------------------------------------
 
-The first information line "got account state ... for ..." shows the account address and the masterchain block identifier with respect to which the account state has been dumped. Notice that even if the account state changes in a subsequent block, the `getaccount xxx` command will return the same result until the reference block is updated to a newer value by a `last` command. In this way one can study the state of all accounts and obtain consistent results.
+### 第一部分：获取账户状态
 
-The "account state is (account ... " line begins the pretty-printed deserialized view of the account state. It is a deserialization of TL-B data type Account, used to represent account states in the TON Blockchain as explained in the TON Blockchain documentation. (You can find the TL-B scheme used for deserialization in the source file crypto/block/block.tlb; notice that if the scheme is out of date, the deserialization may break down.)
+第一行信息“获取账户状态 ... 对于 ...”显示了账户地址和与之相关的主链区块标识符，该标识符表示账户状态已被转储。请注意，即使账户状态在后续区块中发生变化，`getaccount xxx` 命令也将返回相同的结果，直到通过 `last` 命令将参考区块更新为较新的值。通过这种方式，可以研究所有账户的状态并获得一致的结果。
 
-Finally, the last several lines beginning with x{CFF538... (the "raw dump") contain the same information displayed as a tree of cells. In this case, we have one root cell containing the data bits CFF...134_ (the underscore means that the last binary one and all subsequent binary zeroes are to be removed, so hexadecimal "4_" corresponds to binary "0"), and two cells that are its children (displayed with one-space indentation).
+“账户状态是（账户 ...” 行开始了账户状态的格式化解码视图。这是 TL-B 数据类型 Account 的解码，TL-B 用于表示 TON 区块链中的账户状态，如 TON 区块链文档中所述。（您可以在源文件 crypto/block/block.tlb 中找到用于解码的 TL-B 方案；如果方案过时，解码可能会出现问题。）
 
-We can see that x{FF0020DD20...} is the code of this smart contract. If we consult the Appendix A of the TON Virtual Machine documentation, we can even disassemble this code: FF00 is SETCP 0, 20 is DUP, DD is IFNOTRET, 20 is DUP, and so on. (Incidentally, you can find the source code of this smartcontract in the source file crypto/block/new-testgiver.fif .)
+最后几行以 x{CFF538...（“原始转储”）开头，包含以树状结构显示的相同信息。在这种情况下，我们有一个根单元格，包含数据位 CFF...134_（下划线表示去除最后一个二进制1及其后所有的二进制零，因此十六进制“4_”对应二进制“0”），以及两个子单元格（以一个空格的缩进显示）。
 
-We can also see that x{00009A15} (the actual value you see may be different) is the persistent data of this smart contract. It is actually an unsigned 32-bit integer, used by the smart contract as the counter of operations performed so far. Notice that this value is big-endian (i.e., 3 is encoded as x{00000003}, not as x{03000000}), as are all integers inside the TON Blockchain. In this case the counter is equal to 0x9A15 = 39445.
+我们可以看到 x{FF0020DD20...} 是此智能合约的代码。如果我们参考 TON 虚拟机文档的附录 A，甚至可以反汇编此代码：FF00 是 SETCP 0，20 是 DUP，DD 是 IFNOTRET，20 是 DUP，依此类推。（顺便提一下，您可以在源文件 crypto/block/new-testgiver.fif 中找到此智能合约的源代码。）
 
-The current balance of the smart contract is easily seen in the pretty-printed portion of the output. In this case, we see ... balance:(currencies:(grams:(nanograms:(... value:1000000000000000...)))), which is the balance of the account in (test) nanograms (a million test Grams in this example; the actual number you see may be smaller). If you study the TL-B scheme provided in crypto/block/scheme.tlb, you will be able to find this number (10^15) in binary big-endian form in the raw dump portion as well (it is located near the end of the data bits of the root cell).
+我们还可以看到 x{00009A15}（实际值可能不同）是此智能合约的持久数据。它实际上是一个无符号的 32 位整数，智能合约用作已执行操作的计数器。请注意，这个值是大端格式的（即，3 编码为 x{00000003}，而不是 x{03000000}），TON 区块链中的所有整数都是如此。在这种情况下，计数器等于 0x9A15 = 39445。
 
-3. Compiling a new smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+智能合约的当前余额可以在格式化输出部分轻松看到。在这种情况下，我们看到 ... balance:(currencies:(grams:(nanograms:(... value:1000000000000000...))))，这是账户的余额（以测试纳诺克拉姆为单位，在这个例子中是一百万测试克拉姆；实际数字可能会更小）。如果您研究 crypto/block/scheme.tlb 中提供的 TL-B 方案，您也可以在原始转储部分找到这个数字（10^15）的大端二进制形式（它位于根单元格数据位的末尾附近）。
 
-Before uploading a new smart contract into the TON Blockchain, you need to determine its code and data and save them in serialized form into a file (called a "bag-of-cells" or BOC file, usually with a .boc suffix). Let us consider the case of a simple wallet smart contract, which stores a 32-bit operations counter and a 256-bit Ed25519 public key of its owner in its persistent data.
+### 3. 编译新的智能合约
 
-Obviously, you'll need some tools for developing smart contracts - namely, a TON smart contract compiler. Basically, a TON smart contract compiler is a program that reads the source of a smart contract in a specialized high-level programming language and creates a .boc file from this source.
+在将新的智能合约上传到 TON 区块链之前，您需要确定其代码和数据，并将其以序列化形式保存到一个文件中（称为“单元格包”或 BOC 文件，通常以 .boc 为后缀）。让我们考虑一个简单钱包智能合约的案例，该合约在其持久数据中存储一个 32 位操作计数器和一个 256 位 Ed25519 公钥。
 
-One such tool is the Fift interpreter, which is included in this distribution and can help create simple smart contracts. Larger smart contracts should be developed using more sophisticated tools (such as the FunC compiler included in this distribution, that creates Fift assembler files from FunC source files; you can find some FunC smart-contract sources in the directory `crypto/smartcont`). However, Fift is sufficient for demonstration purposes.
+显然，您需要一些用于开发智能合约的工具，即 TON 智能合约编译器。基本上，TON 智能合约编译器是一个程序，它读取用专门的高级编程语言编写的智能合约源代码，并从该源代码创建一个 .boc 文件。
 
-Consider the file `new-wallet.fif` (usually located as `crypto/smartcont/new-wallet.fif` with respect to the source directory) containing the source of a simple wallet smart contract:
+其中一个工具是 Fift 解释器，它包含在此发行版中，可以帮助创建简单的智能合约。更大的智能合约应使用更复杂的工具进行开发（例如，FunC 编译器，它从 FunC 源文件创建 Fift 汇编文件；您可以在目录 `crypto/smartcont` 中找到一些 FunC 智能合约源文件）。然而，Fift 对于演示目的来说是足够的。
+
+考虑文件 `new-wallet.fif`（通常位于源目录的 `crypto/smartcont/new-wallet.fif`）包含一个简单钱包智能合约的源代码：
 
 ------------------------------------
+```
 #!/usr/bin/env fift -s
 "TonUtil.fif" include
 "Asm.fif" include
@@ -180,17 +185,21 @@ dup ."External message for initialization is " <s csr. cr
 2 boc+>B dup Bx. cr
 file-base +"-query.boc" tuck B>file
 ."(Saved wallet creating query to file " type .")" cr
+```
 --------------------------------------------
 
-(The actual source file in your distribution may be slighly different.) Essentially, it is a complete Fift script for creating a new instance of this smart contract controlled by a newly-generated keypair. The script accepts command-line arguments, so you don't need to edit the source file each time you want to create a new wallet.
 
-Now, provided that you have compiled Fift binary (usually located as "crypto/fift" with respect to the build directory), you can run
+（您发行版中的实际源文件可能会有所不同。）本质上，这是一个完整的 Fift 脚本，用于创建一个由新生成的密钥对控制的新智能合约实例。该脚本接受命令行参数，因此您无需每次创建新钱包时都编辑源文件。
 
+现在，假设您已经编译了 Fift 二进制文件（通常位于构建目录下的 "crypto/fift"），您可以运行以下命令：
+
+```
 $ crypto/fift -I<source-directory>/crypto/fift/lib -s <source-directory>/crypto/smartcont/new-wallet.fif 0 my_wallet_name
+```
 
-where 0 is the workchain to contain the new wallet (0 = basechain, -1 = masterchain), `my_wallet_name` is any identifier you wish to be associated with this wallet. The address of the new wallet will be saved into file `my_wallet_name.addr`, its newly-generated private key will be saved to `my_wallet_name.pk` (unless this file already exists; then the key will be loaded from this file instead), and the external message will be saved into my_wallet_name-query.boc. If you do not indicate the name of your wallet (`my_wallet_name` in the example above), the default name `new-wallet` is used.
+其中 `0` 是包含新钱包的工作链（0 = 基本链，-1 = 主链），`my_wallet_name` 是您希望与此钱包关联的任何标识符。新钱包的地址将保存到文件 `my_wallet_name.addr`，其新生成的私钥将保存到 `my_wallet_name.pk`（除非该文件已经存在；此时将从该文件加载密钥），外部消息将保存到 `my_wallet_name-query.boc`。如果您未指定钱包名称（上例中的 `my_wallet_name`），则使用默认名称 `new-wallet`。
 
-You may opt to set the FIFTPATH environment variable to <source-directory>/crypto/fift/lib:<source-directory>/crypto/smartcont, the directories containing Fift.fif and Asm.fif library files, and the sample smart-contract sources, respectively; then you can omit the -I argument to the Fift interpreter. If you install the Fift binary `crypto/fift` to a directory included in your PATH (e.g., /usr/bin/fift), you can simply invoke
+您可以选择将 FIFTPATH 环境变量设置为 `<source-directory>/crypto/fift/lib:<source-directory>/crypto/smartcont`，分别包含 Fift.fif 和 Asm.fif 库文件以及示例智能合约源文件；然后您可以省略 Fift 解释器的 -I 参数。如果您将 Fift 二进制文件 `crypto/fift` 安装到包含在 PATH 中的目录（例如 `/usr/bin/fift`），您可以简单地调用：
 
 $ fift -s new-wallet.fif 0 my_wallet_name
 
@@ -199,6 +208,7 @@ instead of indicating the complete search paths in the command line.
 If everything worked, you'll see something like the following
 
 --------------------------------------------
+```
 Creating new wallet in workchain 0 
 Saved new private key to file my_wallet_name.pk
 StateInit: x{34_}
@@ -217,18 +227,19 @@ External message for initialization is x{88005DD369FA9E0EF93644650186AEC7BF3DB56
 
 B5EE9C724104030100000000E50002CF88005DD369FA9E0EF93644650186AEC7BF3DB5616835841A6DE8012CEFBF2B875FC41190260D403E40B2EE8BEB2855D0F4447679D9B9519BE64BE421166ABA2C66BEAAAF4EBAF8E162886430243216DDA10FCE68C07B6D7DDAA3E372478D711E3E1041C000000010010200A2FF0020DD2082014C97BA9730ED44D0D70B1FE0A4F260810200D71820D70B1FED44D0D31FD3FFD15112BAF2A122F901541044F910F2A2F80001D31F3120D74A96D307D402FB00DED1A4C8CB1FCBFFC9ED54004800000000C59DC52962CC568AC5E72735EABB025C5BDF457D029AEEA6C2FFA5EB2A945446BCF59C17
 (Saved wallet creating query to file my_wallet_name-query.boc)
+```
 --------------------------------------------
 
-In a nutshell, the Fift assembler (loaded by the "Asm.fif" include line) is used to compile the source code of the smart contract (contained in <{ SETCP0 ... c4 POPCTR }> lines) into its internal representation. The initial data of the smart contract is also created (by <b 0 32 u, ... b> lines), containing a 32-bit sequence number (equal to zero) and a 256-bit public key from a newly-generated Ed25519 keypair. The corresponding private key is saved into the file `my_wallet_name.pk` unless it already exists (if you run this code twice in the same directory, the private key will be loaded from this file instead).
+简而言之，Fift 汇编器（通过 "Asm.fif" 包含行加载）用于将智能合约的源代码（包含 `<{ SETCP0 ... c4 POPCTR }> 行`）编译成其内部表示。智能合约的初始数据也会创建（通过 `<b 0 32 u, ... b>` 行），其中包含一个 32 位的序列号（等于零）和一个来自新生成的 Ed25519 密钥对的 256 位公钥。相应的私钥将保存到 `my_wallet_name.pk` 文件中，除非该文件已经存在（如果您在同一目录下运行此代码两次，则会从该文件中加载私钥）。
 
-The code and data for the new smart contract are combined into a StateInit structure (in the next lines), the address of the new smart contract (equal to the hash of this StateInit structure) is computed and output, and then an external message with a destination address equal to that of the new smart contract is created. This external message contains both the correct StateInit for the new smart contract and a non-trivial payload (signed by the correct private key).
+新智能合约的代码和数据将组合成一个 StateInit 结构（在接下来的行中），计算并输出新智能合约的地址（等于此 StateInit 结构的哈希值），然后创建一个外部消息，其目标地址等于新智能合约的地址。此外部消息包含新智能合约的正确 StateInit 以及一个非平凡的有效载荷（由正确的私钥签名）。
 
-Finally, the external message is serialized into a bag of cells (represented by B5EE...BE63) and saved into the file `my_wallet_name-query.boc`. Essentially, this file is your compiled smart contract with all additional information necessary to upload it into the TON Blockchain.
+最后，外部消息被序列化为一个细胞包（表示为 B5EE...BE63），并保存到 `my_wallet_name-query.boc` 文件中。基本上，此文件是您的编译智能合约，包含了上传到 TON 区块链所需的所有附加信息。
 
-4. Transferring some funds to the new smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4. 向新智能合约转移资金
 
-You might try to upload the new smart contract immediately by running the Lite Client and typing
+
+您可以尝试立即上传新智能合约，运行 Lite Client 并输入：
 
 > sendfile new-wallet-query.boc
 
@@ -236,41 +247,47 @@ or
 
 > sendfile my_wallet_name-query.boc
 
-if you chose to name your wallet `my_wallet_name`.
+如果您选择将钱包命名为 `my_wallet_name`。
 
-Unfortunately, this won't work, because smart contracts must have a positive balance to be able to pay for storing and processing their data in the blockchain. So you have to transfer some funds to your new smart contract address first, displayed during its generation as -1:60c0...c0d0 (in raw form) and 0f9..EKD (in user-friendly form).
+不幸的是，这将不起作用，因为智能合约必须有一个正余额才能支付存储和处理其数据的费用。因此，您必须先将一些资金转移到您的新智能合约地址，该地址在生成过程中显示为 -1:60c0...c0d0（原始形式）和 0f9...EKD（用户友好形式）。
 
-In a real scenario, you would either transfer some Grams from your already existing wallet, ask a friend to do so, or buy some Grams at a cryptocurrency exchange, indicating 0f9...EKD as the account to transfer the new Grams to.
+在实际场景中，您可以从已有的钱包转移一些 Grams，或让朋友帮忙，或者在加密货币交易所购买一些 Grams，并将 0f9...EKD 作为转账账户。
 
-In the Test Network, you have another option: you can ask the "test giver" to give you some test Grams (up to 20). Let us explain how to do it.
+在测试网络中，您还有另一个选项：您可以请求“测试赠送者”给您一些测试 Grams（最多 20 个）。下面解释如何操作。
 
-5. Using the test giver smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+5. 使用测试赠送者智能合约
 
-You need to know the address of the test giver smart contract. We'll assume that it is -1:fcb91a3a3816d0f7b8c2c76108b8a9bc5a6b7a55bd79f8ab101c52db29232260, or, equivalently, kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny, as indicated in one of the previous examples. You inspect the state of this smart contract in the Lite Client by typing
 
+您需要知道测试赠送者智能合约的地址。我们假设它是 -1:fcb91a3a3816d0f7b8c2c76108b8a9bc5a6b7a55bd79f8ab101c52db29232260，或者等效的 kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny，正如之前的示例所示。您可以通过在 Lite Client 中输入以下命令来检查此智能合约的状态：
+
+```
 > last
 > getaccount kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny
+```
 
-as explained above in Section 2. The only number you need from the output is the 32-bit sequence number stored in the smart contract data (it is 0x9A15 in the example above, but generally it will be different). A simpler way of obtaining the current value of this sequence number is by typing
 
+如第2节所述，您只需要从输出中获取存储在智能合约数据中的32位序列号（在上述示例中是0x9A15，但通常会有所不同）。获取此序列号当前值的更简单方法是输入以下命令：
+```
 > last
 > runmethod kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny seqno
 
 producing the correct value 39445 = 0x9A15:
-
+```
 --------------------------------------------
+```
 got account state for -1 : FCB91A3A3816D0F7B8C2C76108B8A9BC5A6B7A55BD79F8AB101C52DB29232260 with respect to blocks (-1,8000000000000000,2240):18E6DA7707191E76C71EABBC5277650666B7E2CFA2AEF2CE607EAFE8657A3820:4EFA2540C5D1E4A1BA2B529EE0B65415DF46BFFBD27A8EB74C4C0E17770D03B1
 creating VM
 starting VM to run method `seqno` (85143) of smart contract -1:FCB91A3A3816D0F7B8C2C76108B8A9BC5A6B7A55BD79F8AB101C52DB29232260
 ...
 arguments:  [ 85143 ] 
 result:  [ 39445 ] 
+```
 --------------------------------------------
 
-Next, you create an external message to the test giver asking it to send another message to your (uninitialized) smart contract carrying a specified amount of test Grams. There is a special Fift script for generating this external message located at crypto/smartcont/testgiver.fif:
+接下来，您需要创建一个外部消息，要求测试给予者向您的（尚未初始化的）智能合约发送指定数量的测试 Grams。用于生成此外部消息的特殊 Fift 脚本位于 `crypto/smartcont/testgiver.fif`：
 
 --------------------------------------------
+```
 #!/usr/bin/env fift -s
 "TonUtil.fif" include
 
@@ -319,16 +336,18 @@ $ crypto/fift -I<source-directory>/crypto/fift/lib:<source-directory>/crypto/sma
 or simply
 
 $ fift -s testgiver.fif 0QAu6bT9Twd8myIygMNXY9-e2rC0GsINNvQAlnfflcOv4uVb 0x9A15 6.666 wallet-query
+```
 
-provided you have set up the environment variable FIFTPATH to <source-directory>/crypto/fift/lib:<source-directory>/crypto/smartcont and installed the fift binary as /usr/bin/fift (or anywhere else in your PATH).
+如果您已将环境变量 `FIFTPATH` 设置为 `<source-directory>/crypto/fift/lib:<source-directory>/crypto/smartcont`，并将 `fift` 二进制文件安装为 `/usr/bin/fift`（或在您的 PATH 中的其他位置）。
 
-The newly-created message to the new smart contract must have its bounce bit clear, otherwise the transfer will be "bounced" to its sender. This is the reason we have passed the "non-bounceable" address 0QAu6bT9Twd8myIygMNXY9-e2rC0GsINNvQAlnfflcOv4uVb of our new wallet smart contract.
+新创建的消息必须确保其回跳位未设置，否则转账将被“回跳”回发件人。这就是为什么我们使用了“非回跳”地址 `0QAu6bT9Twd8myIygMNXY9-e2rC0GsINNvQAlnfflcOv4uVb` 作为我们新钱包智能合约的地址。
 
-This Fift code creates an internal message from the test giver smart contract to the address of our new smart contract carrying 6.666 test Grams (you can enter any other amount here up to approximately 20 Grams). Then this message is enveloped into an external message addressed to the test giver; this external message must also contain the correct sequence number of the test giver. When the test giver receives such an external message, it checks whether the sequence number matches the one stored in its persistent data, and if it does, sends the embedded internal message with the required amount of test Grams to its destination (our smart contract in this case).
+这段 Fift 代码创建了一个从测试给予者智能合约到我们新智能合约的内部消息，携带 6.666 测试 Grams（您可以在这里输入其他数量，最多约 20 Grams）。然后，这个消息被封装到一个发给测试给予者的外部消息中；这个外部消息还必须包含测试给予者的正确序列号。当测试给予者收到这样的外部消息时，它会检查序列号是否与其持久数据中存储的序列号匹配，如果匹配，它会将嵌入的内部消息连同所需的测试 Grams 发送到目标地址（在这种情况下是我们的智能合约）。
 
-The external message is serialized and saved into the file `wallet-query.boc`. Some output is generated in the process:
+外部消息被序列化并保存到文件 `wallet-query.boc` 中。在这个过程中会生成一些输出：
 
 ---------------------------------------------
+```
 Test giver address = -1:fcb91a3a3816d0f7b8c2c76108b8a9bc5a6b7a55bd79f8ab101c52db29232260 
 kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny
 Requesting GR$6.666 to account 0QAu6bT9Twd8myIygMNXY9-e2rC0GsINNvQAlnfflcOv4uVb = 0:2ee9b4fd4f077c9b223280c35763df9edab0b41ac20d36f4009677df95c3afe2 seqno=0x9a15 bounce=0 
@@ -340,26 +359,29 @@ resulting external message: x{89FF02ACEEB6F264BCBAC5CE85B372D8616CA2B4B9A5E3EC98
 
 B5EE9C7241040201000000006600014F89FF02ACEEB6F264BCBAC5CE85B372D8616CA2B4B9A5E3EC98BB496327807E0E1C1A000004D0A80C01007242001774DA7EA783BE4D91194061ABB1EFCF6D585A0D61069B7A004B3BEFCAE1D7F1280C6A98B4000000000000000000000000000047494654AFC17FA4
 (Saved to file wallet-query.boc)
+```
 ---------------------------------------------
 
-6. Uploading the external message to the test giver smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+6. 上传外部消息到测试给予者智能合约
 
-Now we can invoke the Lite Client, check the state of the test giver (if the sequence number has changed, our external message will fail), and then type
 
+现在我们可以调用 Lite Client，检查测试给予者的状态（如果序列号已更改，我们的外部消息将会失败），然后输入以下命令：
+```
 > sendfile wallet-query.boc
 
 We will see some output:
 ... external message status is 1
+```
 
-which means that the external message has been delivered to the collator pool. Afterwards one of the collators might choose to include this external message in a block, creating a transaction for the test giver smart contract to process this external message. We can check whether the state of the test giver has changed:
-
+这意味着外部消息已经被送到协作者池。随后，某个协作者可能会选择将此外部消息包含在一个区块中，为测试给予者智能合约创建一个处理该外部消息的交易。我们可以检查测试给予者的状态是否已经改变：
+```
 > last
 > getaccount kf_8uRo6OBbQ97jCx2EIuKm8Wmt6Vb15-KsQHFLbKSMiYIny
-
-(If you forget to type `last`, you are likely to see the unchanged state of the test giver smart contract.) The resulting output would be:
+```
+（如果你忘记输入 `last` 命令，你很可能会看到测试给予者智能合约的状态没有变化。）结果输出将是：
 
 ---------------------------------------------
+```
 got account state for -1 : FCB91A3A3816D0F7B8C2C76108B8A9BC5A6B7A55BD79F8AB101C52DB29232260 with respect to blocks (-1,8000000000000000,2240):18E6DA7707191E76C71EABBC5277650666B7E2CFA2AEF2CE607EAFE8657A3820:4EFA2540C5D1E4A1BA2B529EE0B65415DF46BFFBD27A8EB74C4C0E17770D03B1
 account state is (account
   addr:(addr_std
@@ -394,18 +416,24 @@ account state is (account
 x{CFF8156775B79325E5D62E742D9B96C30B6515A5CD2F1F64C5DA4B193C03F070E0D2068086C00000000000000009F65D110DC0E35F450FA914134_}
  x{FF0020DDA4F260D31F01ED44D0D31FD166BAF2A1F80001D307D4D1821804A817C80073FB0201FB00A4C8CB1FC9ED54}
  x{00000001}
+```
+
 ---------------------------------------------
 
-You may notice that the sequence number stored in the persistent data has changed (in our example, to 0x9A16 = 39446), and the last_trans_lt field (the logical time of the last transaction of this account) has been increased.
 
-Now we can inspect the state of our new smart contract:
+你可能会注意到，持久数据中存储的序列号已发生变化（在我们的例子中，变为 0x9A16 = 39446），并且 `last_trans_lt` 字段（该账户的最后一笔交易的逻辑时间）也有所增加。
 
+现在我们可以检查我们新智能合约的状态：
+```
 > getaccount 0QAu6bT9Twd8myIygMNXY9-e2rC0GsINNvQAlnfflcOv4uVb
 or
 > getaccount 0:2ee9b4fd4f077c9b223280c35763df9edab0b41ac20d36f4009677df95c3afe2
+```
+
 Now we see
 
 ---------------------------------------------
+```
 got account state for 0:2EE9B4FD4F077C9B223280C35763DF9EDAB0B41AC20D36F4009677DF95C3AFE2 with respect to blocks (-1,8000000000000000,16481):890F4D549428B2929F5D5E0C5719FBCDA60B308BA4B907797C9E846E644ADF26:22387176928F7BCEF654411CA820D858D57A10BBF1A0E153E1F77DE2EFB2A3FB and (-1,8000000000000000,16481):890F4D549428B2929F5D5E0C5719FBCDA60B308BA4B907797C9E846E644ADF26:22387176928F7BCEF654411CA820D858D57A10BBF1A0E153E1F77DE2EFB2A3FB
 account state is (account
   addr:(addr_std
@@ -424,16 +452,17 @@ account state is (account
         dict:hme_empty))
     state:account_uninit))
 x{CFF60C04141C6A7B96D68615E7A91D265AD0F3A9A922E9AE9C901D4FA83F5D3C0D02025BC2E4A0D9400000000F492A0511406354C5A004_}
+```
 ---------------------------------------------
 
-Our new smart contract has some positive balance (of 6.666 test Grams), but has no code or data (reflected by `state:account_uninit`).
+我们的新智能合约有一定的正余额（6.666 测试 Grams），但没有代码或数据（显示为 `state:account_uninit`）。
 
-7. Uploading the code and data of the new smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+7. 上传新智能合约的代码和数据
 
 Now you can finally upload the external message with the StateInit of the new smart contract, containing its code and data:
 
 ---------------------------------------------
+```
 > sendfile my_wallet_name-query.boc
 ... external message status is 1
 > last
@@ -474,18 +503,19 @@ account state is (account
 x{CFF60C04141C6A7B96D68615E7A91D265AD0F3A9A922E9AE9C901D4FA83F5D3C0D020680F0C2E4A0EB280000000F7BB57909405928024A134_}
  x{FF0020DDA4F260810200D71820D70B1FED44D0D7091FD709FFD15112BAF2A122F901541044F910F2A2F80001D7091F3120D74A97D70907D402FB00DED1A4C8CB1FCBFFC9ED54}
  x{00000001F61CF0BC8E891AD7636E0CD35229D579323AA2DA827EB85D8071407464DC2FA3}
+```
+
 ---------------------------------------------
+您将看到智能合约已经使用外部消息中的 StateInit 的代码和数据进行了初始化，并且其余额因处理费用而有所减少。现在它已经上线运行，您可以通过生成新的外部消息并使用 Lite Client 的 "sendfile" 命令将其上传到 TON 区块链来激活它。
 
-You will see that the smart contract has been initialized using code and data from the StateInit of the external message, and its balance has been slightly decreased because of the processing fees. Now it is up and running, and you can activate it by generating new external messages and uploading them to the TON Blockchain using the "sendfile" command of the Lite Client.
+8. 使用简单钱包智能合约
 
-8. Using the simple wallet smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+实际上，示例中使用的简单钱包智能合约可以用来将测试 Grams 转账到任何其他账户。它在这方面类似于上面讨论的测试给予者智能合约，不同之处在于它只处理由正确私钥（即其所有者的私钥）签名的外部消息。在我们的情况下，这个私钥在智能合约编译时被保存到文件 "my_wallet_name.pk" 中（见第 3 节）。
 
-Actually, the simple wallet smart contract used in this example can be used to transfer test Grams to any other accounts. It is in this respect similar to the test giver smart contract discussed above, with the difference that it processes only external messages signed by the correct private key (of its owner). In our case, it is the private key saved into the file "my_wallet_name.pk" during the compilation of the smart contract (see Section 3).
-
-An example of how you might use this smart contract is provided in sample file crypto/smartcont/wallet.fif :
+关于如何使用这个智能合约的示例，见样本文件 `crypto/smartcont/wallet.fif`：
 
 --------------------------------------------------------
+```
 #!/usr/bin/env fift -s
 "TonUtil.fif" include
 
@@ -531,6 +561,7 @@ dup ."resulting external message: " <s csr. cr
 2 boc+>B dup Bx. cr
 savefile +".boc" tuck B>file
 ."(Saved to file " type .")" cr
+```
 -------------------------------------
 
 You can invoke this script as follows:
@@ -541,16 +572,18 @@ or simply
 
 $ fift -s wallet.fif <your-wallet-id> <destination-addr> <your-wallet-seqno> <gram-amount>
 
-if you have correctly set up PATH and FIFTPATH.
+如果您已经正确设置了 PATH 和 FIFTPATH。
 
-For example,
+例如，
 
+```
 $ fift -s wallet.fif my_wallet_name kf8Ty2EqAKfAksff0upF1gOptUWRukyI9x5wfgCbh58Pss9j 1 .666
+```
 
-Here `my_wallet_name` is the identifier of your wallet used before with new-wallet.fif; the address and the private key of your test wallet will be loaded from files `my_wallet_name.addr` and `my_wallet_name.pk` in the current directory.
+这里 `my_wallet_name` 是您之前在 `new-wallet.fif` 中使用的钱包标识符；测试钱包的地址和私钥将从当前目录中的 `my_wallet_name.addr` 和 `my_wallet_name.pk` 文件中加载。
 
-When you run this code (by invoking the Fift interpreter), you create an external message with a destination equal to the address of your wallet smart contract, containing a correct Ed25519 signature, a sequence number, and an enveloped internal message from your wallet smart contract to the smart contract indicated in dest_addr, with an arbitrary value attached and an arbitrary payload. When your smart contract receives and processes this external message, it first checks the signature and the sequence number. If they are correct, it accepts the external message, sends the embedded internal message from itself to the intended destination, and increases the sequence number in its persistent data (this is a simple measure to prevent replay attacks, in case this sample wallet smart contract code ends up used in a real wallet application).
+运行这段代码（通过调用 Fift 解释器），您将创建一个外部消息，目的地是您钱包智能合约的地址，包含正确的 Ed25519 签名、一个序列号以及一个封装的内部消息，从您的钱包智能合约到指定的 `dest_addr` 智能合约，附带一个任意值和任意有效负载。当您的智能合约接收到并处理这个外部消息时，它首先检查签名和序列号。如果它们是正确的，它将接受外部消息，发送嵌入的内部消息到目标地址，并增加其持久数据中的序列号（这是一个简单的防止重放攻击的措施，以防这个示例钱包智能合约代码最终被用于真实的钱包应用）。
 
-Of course, a true TON Blockchain wallet application would hide all the intermediate steps explained above. It would first communicate the address of the new smart contract to the user, asking them to transfer some funds to the indicated address (displayed in its non-bounceable user-friendly form) from another wallet or a cryptocurrency exchange, and then would provide a simple interface to display the current balance and to transfer funds to whatever other addresses the user wants. (The aim of this document is to explain how to create new non-trivial smart contracts and experiment with the TON Blockchain Test Network, rather than to explain how one could use the Lite Client instead of a more user-friendly wallet application.)
+当然，真正的 TON 区块链钱包应用程序会隐藏上述所有中间步骤。它会首先将新智能合约的地址传达给用户，要求他们从另一个钱包或加密货币交易所将一些资金转移到该地址（以其非回退用户友好形式显示），然后提供一个简单的界面以显示当前余额，并将资金转移到用户希望的其他地址。（本文档的目的是解释如何创建新的非平凡智能合约并在 TON 区块链测试网络上进行实验，而不是解释如何使用 Lite Client 替代更用户友好的钱包应用程序。）
 
-One final remark: The above examples used smart contracts in the basic workchain (workchain 0). They would work in exactly the same way in the masterchain (workchain -1), if one passes workchain identifier -1 instead of 0 as the first argument to `new-wallet.fif`. The only difference is that the processing and storage fees in the basic workchain are 100-1000 times lower than in the masterchain. Some smart contracts (such as the validator election smart contract) accept transfers only from masterchain smart contracts, so you'll need a wallet in the masterchain if you wish to make stakes on behalf of your own validator and participate in the elections.
+最后一点说明：以上示例使用了基本工作链（workchain 0）的智能合约。如果将 `new-wallet.fif` 的第一个参数设置为 -1（表示主链）而不是 0，这些智能合约在主链中也会以完全相同的方式工作。唯一的区别是基本工作链中的处理和存储费用比主链低 100-1000 倍。一些智能合约（如验证者选举智能合约）只接受来自主链智能合约的转账，因此如果您希望代表自己的验证者进行质押并参与选举，您将需要在主链上拥有一个钱包。

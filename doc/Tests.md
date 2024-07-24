@@ -1,24 +1,29 @@
-# Tests execution
-TON contains multiple unit-tests, that facilitate detection of erroneous blockchain behaviour on each commit.
-## Build tests
-Go inside the build directory and, if you use ninja, build the tests using the following command:
+# 测试执行
+
+TON 包含多个单元测试，这些测试可以在每次提交时帮助检测区块链的错误行为。
+
+## 构建测试
+
+进入构建目录，如果使用 ninja，使用以下命令构建测试：
 
 ```ninja test-ed25519 test-ed25519-crypto test-bigint test-vm test-fift test-cells test-smartcont test-net test-tdactor test-tdutils test-tonlib-offline test-adnl test-dht test-rldp test-rldp2 test-catchain test-fec test-tddb test-db test-validator-session-state```
 
-For more details on how to build TON artifacts, please refer to any of Github actions.
+有关如何构建 TON 工件的更多细节，请参阅任何 GitHub Actions 文档。
 
-For cmake use:
+如果使用 cmake，请使用：
 
 ```cmake --build . --target test-ed25519 test-ed25519-crypto test-bigint test-vm test-fift test-cells test-smartcont test-net test-tdactor test-tdutils test-tonlib-offline test-adnl test-dht test-rldp test-rldp2 test-catchain test-fec test-tddb test-db test-validator-session-state```
 
-## Run tests
-Go inside the build directory and with ninja execute:
+## 运行测试
+
+进入构建目录，并使用 ninja 执行：
 
 ```ninja test```
 
-with ctest:
+使用 ctest 执行：
 
 ```ctest```
 
-## Integration of tests into CI
-Most relevant GitHub actions include the step ```Run tests``` that executes the tests. If any of tests fails, the action will be interrupted and no artifacts will be provided.
+## 将测试集成到 CI 中
+
+最相关的 GitHub Actions 包括步骤 ```Run tests```，该步骤会执行测试。如果任何测试失败，操作将中断，并且不会提供工件。

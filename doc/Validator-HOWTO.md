@@ -1,83 +1,83 @@
-The aim of this document is to provide step-by-step instructions for setting up a full node for the TON Blockchain as a validator. We assume that a TON Blockchain Full Node is already up and running as explained in FullNode-HOWTO. We also assume some familiarity with the TON Blockchain Lite Client.
+这份文档的目的是为TON区块链的全节点设置提供逐步指导，作为验证者。我们假设TON区块链的全节点已经按照FullNode-HOWTO中的说明运行起来。我们还假设您对TON区块链的Lite客户端有一定的了解。
 
-Note that a validator must be run on a dedicated high-performance server with high network bandwidth installed in a reliable datacenter, and that you'll need a large amount of Grams (test Grams, if you want to run a validator in the "testnet") as stakes for your validator. If your validator works incorrectly or is not available for prolonged periods of time, you may lose part or all of your stake, so it makes sense to use high-performance, reliable servers. We recommend a dual-processor server with at least eight cores in each processor, at least 256 MiB RAM, at least 8 TB of conventional HDD storage and at least 512 GB of faster SSD storage, with 1 Gbit/s network (and Internet) connectivity to reliably accomodate peak loads.
+注意，验证者必须在安装在可靠数据中心的专用高性能服务器上运行，并且您需要大量的克朗（如果您想在“测试网”中运行验证者，则为测试克朗）作为验证者的赌注。如果您的验证者工作不正确或长时间不可用，您可能会失去部分或全部赌注，因此使用高性能、可靠的服务器是有意义的。我们建议使用至少每个处理器有八个核心的双处理器服务器，至少256 MiB RAM，至少8 TB的传统HDD存储和至少512 GB的更快SSD存储，以及1 Gbit/s网络（和互联网）连接，以可靠地容纳峰值负载。
 
-0. Downloading and compiling
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+0. 下载和编译
 
-The basic instructions are the same as for a TON Blockchain Full Node, as explained in FullNode-HOWTO. In fact, any Full Node will automatically work as a validator if it discovers that the public key corresponding to its private key appears as a member of the current validator set for the currently selected TON Blockchain instance. In particular, the Full Node and the Validator use the same binary file `validator-engine`, and are controlled by means of the same `validator-engine-console`.
+基本指令与TON区块链全节点相同，如FullNode-HOWTO中所解释的。实际上，任何全节点如果发现其私钥对应的公钥出现在当前TON区块链实例的当前验证者集中，都会自动作为验证者工作。特别是，全节点和验证者使用相同的二进制文件`validator-engine`，并通过相同的`validator-engine-console`进行控制。
 
-1. Controlling smart contract of a validator
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. 验证者的控制智能合约
 
-In order to run a Validator, you'll need a Full Node that is already up and running (and completely synchronized with the current blockchain state), and a wallet in the masterchain holding a large amount of Grams (or test Grams, if you want to run a validator in the "testnet" TON Blockchain instance). Typically you'll need at least 100,001 Grams in the production network, and at least 10,001 test Grams in the test network. The actual value (in nanograms) can be found as the value of `min_stake` in configuration parameter #17 (available by typing `getconfig 17` into the Lite Client), plus one Gram.
+为了运行验证者，您需要一个已经运行并且完全同步到当前区块链状态的全节点，以及一个在主链中持有大量克朗（或者如果您想在“测试网”TON区块链实例中运行验证者，则为测试克朗）的钱包。通常您需要在生产网络中至少有100,001克朗，在测试网络中至少有10,001测试克朗。实际值（以纳克朗计）可以在Lite客户端中通过键入`getconfig 17`获得，查看配置参数#17的值，再加上一个克朗。
 
-Each validator is identified by its (Ed25519) public key. During the validator elections, the validator (or rather its public key) is also associated with a smart contract residing in the masterchain. For simplicity, we say that the validator is "controlled" by this smart contract (e.g., a wallet smart contract). Stakes are accepted on behalf of this validator only if they arrive from its associated smart contract, and only that associated smart contract is entitled to collect the validator's stake after it is unfrozen, along with the validator's share of bonuses (e.g., block mining fees, transaction and message forwarding fees collected from the users of the TON Blockchain by the validator pool). Typically the bonuses are distributed proportionally to the (effective) stakes of the validators. On the other hand, validators with higher stakes are assigned a larger amount of work to perform (i.e., they have to create and validate blocks for more shardchains), so it is important not to stake an amount that will yield more validation work than your node is capable of handling.
+每个验证者由其（Ed25519）公钥标识。在验证者选举期间，验证者（或其公钥）还与主链中的智能合约相关联。为了简单起见，我们说验证者由这个智能合约“控制”（例如，钱包智能合约）。只有当赌注来自其关联的智能合约时，才会接受代表该验证者的赌注，并且只有该关联的智能合约有权在验证者的赌注解冻后收集验证者的赌注，以及验证者从验证者池中收集的奖金份额（例如，区块挖矿费、交易和消息转发费，由TON区块链的用户支付给验证者）。通常，奖金会按比例分配给验证者的有效赌注。另一方面，拥有更多赌注的验证者被分配更多的工作量（即，他们需要为更多的分片链创建和验证区块），因此重要的是不要下注一个会给您节点带来处理能力的验证工作量的金额。
 
-Notice that each validator (identified by its public key) can be associated with at most one controlling smart contract (residing in the masterchain), but the same controlling smart contract may be associated with several validators. In this way you can run several validators (on different physical servers) and make stakes for them from the same smart contract. If one of these validators stops functioning and you lose its stake, the other validators should continue operating and will keep their stakes and potentially receive bonuses.
+请注意，每个验证者（通过其公钥标识）最多可以与一个控制智能合约（位于主链中）相关联，但同一个控制智能合约可以与多个验证者相关联。这样，您可以在不同的物理服务器上运行多个验证者，并从同一个智能合约中为它们下注。如果其中一个验证者停止工作并且您失去了它的赌注，其他验证者应该继续运行并保留它们的赌注，并有可能获得奖金。
 
-2. Creating the controlling smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2. 创建控制智能合约
 
-If you don't have a controlling smart contract, you can simply create a wallet in the masterchain. A simple wallet can be created with the aid of the script new-wallet.fif, located in the subdirectory crypto/smartcont of the source tree. In what follows, we assume that you have configured the environment variable FIFTPATH to include <source-root>/crypto/fift/lib:<source-root>/crypto/smartcont, and that your PATH includes a directory with the Fift binary (located as <build-directory>/crypto/fift). Then you can simply run
-
+如果您没有控制智能合约，您可以简单地在主链中创建一个钱包。可以使用位于源代码树的crypto/smartcont子目录中的new-wallet.fif脚本来创建简单的钱包。以下假设您已将环境变量FIFTPATH配置为包含<source-root>/crypto/fift/lib:<source-root>/crypto/smartcont，并且您的PATH包括带有Fift二进制文件的目录（位于<build-directory>/crypto/fift）。然后您可以简单地运行：
+```
 $ fift -s new-wallet.fif -1 my_wallet_id
-
-where "my_wallet_id" is any identifier you want to assign to your new wallet, and -1 is the workchain identifier for the masterchain. If you have not set up FIFTPATH and PATH, then you'll have to run a longer version of this command in your build directory as follows:
-
+```
+其中“my_wallet_id”是您想为您的新钱包分配的任何标识符，-1是主链的工作链标识符。如果您没有设置FIFTPATH和PATH，那么您将不得不在构建目录中运行更长版本的此命令，如下所示：
+```
 $ crypto/fift -I <source-dir>/crypto/fift/lib:<source-dir>/crypto/smartcont -s new-wallet.fif -1 my_wallet_id
-
-Once you run this script, the address of the new smart contract is displayed:
+```
+一旦您运行此脚本，将显示新智能合约的地址：
+```
 ...
 new wallet address = -1:af17db43f40b6aa24e7203a9f8c8652310c88c125062d1129fe883eaa1bd6763 
 (Saving address to file my_wallet_id.addr)
 Non-bounceable address (for init): 0f-vF9tD9Atqok5yA6n4yGUjEMiMElBi0RKf6IPqob1nYzqK
 Bounceable address (for later access): kf-vF9tD9Atqok5yA6n4yGUjEMiMElBi0RKf6IPqob1nY2dP
 ...
-(Saved wallet creating query to file my_wallet_id-query.boc)
+```
+（将钱包创建查询保存到文件my_wallet_id-query.boc）
 
-Now my_wallet_id.pk is a new file containing the private key for controlling this wallet (you must keep it secret), and my_wallet_id.addr is a (not so secret) file containing the address of this wallet. Once this is done, you have to transfer some (test) Grams to the non-bounceable address of your wallet, and run "sendfile my_wallet_id-query.boc" in the Lite Client to finish creating the new wallet. This process is explained in more detail in the LiteClient-HOWTO.
+现在my_wallet_id.pk是包含控制此钱包的私钥的新文件（您必须保密），my_wallet_id.addr是包含此钱包地址的（不那么秘密的）文件。完成此操作后，您必须将一些（测试）克朗转移到您的钱包的不可反弹地址，并在Lite客户端中运行“sendfile my_wallet_id-query.boc”以完成创建新钱包。这个过程在LiteClient-HOWTO中有更详细的解释。
 
-If you are running a validator in the "mainnet", it is a good idea to use more sophisticated wallet smart contracts (e.g., a multi-signature wallet). For the "testnet", the simple wallet should be enough.
+如果您在“主网”中运行验证者，最好使用更复杂的钱包智能合约（例如，多签名钱包）。对于“测试网”，简单的钱包应该足够了。
 
-3. Elector smart contract
-~~~~~~~~~~~~~~~~~~~~~~~~~
+3. 选举智能合约
 
-The elector smart contract is a special smart contract residing in the masterchain. Its full address is -1:xxx..xxx, where -1 is the workchain identifier (-1 corresponds to the masterchain), and xxx..xxx is the hexadecimal representation of its 256-bit address inside the masterchain. In order to find out this address, you have to read the configuration parameter #1 from a recent state of the blockchain. This is easily done by means of the command `getconfig 1` in the Lite Client:
-
+选举智能合约是位于主链中的特殊智能合约。其完整地址是-1:xxx..xxx，其中-1是工作链标识符（-1对应于主链），xxx..xxx是其在主链内的256位地址的十六进制表示。为了找到这个地址，您必须从区块链的最新状态中读取配置参数#1。这可以通过在Lite客户端中使用命令`getconfig 1`轻松完成：
+```
 > getconfig 1
 ConfigParam(1) = ( elector_addr:xA4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA)
 x{A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA}
+```
+在这种情况下，完整的选举地址是-1:A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA
 
-In this case, the complete elector address is -1:A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA
-
-We assume familiarity with the Lite Client and that you know how to run it and how to obtain a global configuration file for it. Notice that the above command can be run in batch mode by using the '-c' command-line option of the Lite Client:
-
+我们假设您熟悉Lite客户端，并且知道如何运行它以及如何获取它的全局配置文件。请注意，上述命令可以通过使用Lite客户端的'-c'命令行选项在批处理模式下运行：
+```
 $ lite-client -C <global-config-file> -c 'getconfig 1'
 ...
 ConfigParam(1) = ( elector_addr:xA4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA)
 x{A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA}
 
 $
+```
 
-The elector smart contract has several uses. Most importantly, you can participate in validator elections or collect unfrozen stakes and bonuses by sending messages from the controlling smart contract of your validator to the elector smart contract. You can also learn about current validator elections and their participants by invoking the so-called "get-methods" of the elector smart contract.
+选举智能合约有几种用途。最重要的是，您可以通过向选举智能合约发送消息，从控制智能合约参与验证者选举或收集解冻的赌注和奖金。您还可以通过调用选举智能合约的所谓“get-methods”来了解当前的验证者选举及其参与者。
 
-Namely, running
-
+具体来说，运行
+```
 > runmethod -1:A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA active_election_id
 ...
 arguments:  [ 86535 ] 
 result:  [ 1567633899 ] 
+```
 
-(or lite-client -C <global-config> -c "runmethod -1:<elector-addr> active_election_id" in batch mode) will return the identifier of the currently active elections (a non-zero integer, typically the Unix time of the start of the service term of the validator group being elected), or 0, if no elections are currently active. In this example, the identifier of the active elections is 1567633899.
+（或者lite-client -C <global-config> -c "runmethod -1:<elector-addr> active_election_id"在批处理模式下）将返回当前活动选举的标识符（一个非零整数，通常是被选举的验证者组的服务期限开始的Unix时间），或者如果当前没有活动选举，则返回0。在这个例子中，活动选举的标识符是1567633899。
 
-You can also recover the list of all active participants (pairs of 256-bit validator public keys and their corresponding stakes expressed in nanograms) by running the method "participant_list" instead of "active_election_id".
+您还可以通过运行方法“participant_list”而不是“active_election_id”来恢复所有活动参与者的列表（256位验证者公钥及其相应赌注的对，以纳克朗表示）。
 
-4. Creating a validator public key and ADNL address
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4. 创建验证者公钥和ADNL地址
 
-In order to participate in validator elections, you need to know the elections identifier (obtained by running get-method "active_elections_id" of the elector smart contract), and also the public key of your validator. The public key is created by running validator-engine-console (as explained in FullNode-HOWTO) and running the following commands:
-
+为了参加验证者选举，您需要知道选举标识符（通过运行选举智能合约的get-method "active_elections_id"获得），以及您的验证者公钥。
+公钥是通过运行validator-engine-console（如FullNode-HOWTO中所解释）并运行以下命令创建的：
+```
 $ validator-engine-console ...
 ...
 conn ready
@@ -87,58 +87,62 @@ created new key BCA335626726CF2E522D287B27E4FAFFF82D1D98615957DB8E224CB397B2EB67
 got public key: xrQTSIQEsqZkWnoADMiBnyBFRUUweXTvzRQFqb5nHd5xmeE6
 > addpermkey BCA335626726CF2E522D287B27E4FAFFF82D1D98615957DB8E224CB397B2EB67 1567633899 1567733900
 success
+```
 
-Now the full node (validator-engine) has generated a new keypair, exported the base64 representation of the public key (xrQT...E6), and registered it as a persistent key for signing blocks starting from Unix time 1567633899 (equal to the election identifier) until 1567733900 (equal to the previous number plus the term duration of the validator set to be elected, available in configuration parameter #15, which can be learned by typing "getconfig 15" in the Lite Client, plus a safety margin in case elections actually happen later than intended).
+现在全节点（validator-engine）已生成了一个新的密钥对，导出了公钥的base64表示（xrQT...E6），并将其注册为从Unix时间1567633899（等于选举标识符）开始签署区块的持久密钥，直到1567733900（等于前一个数字加上在Lite客户端中通过键入"getconfig 15"获得的配置参数#15中的验证者集的期限，再加上以防选举实际发生得比预期晚的安全余量）。
 
-You also need to define a temporary key to be used by the validator to participate in the network consensus protocol. The simplest way (sufficient for testing purposes) is to set this key equal to the persistent (block signing) key:
-
+您还需要定义一个临时密钥，供验证者用于参与网络共识协议。最简单的方法（足以用于测试目的）是将此密钥设置为持久（区块签名）密钥：
+```
 > addtempkey BCA335626726CF2E522D287B27E4FAFFF82D1D98615957DB8E224CB397B2EB67 BCA335626726CF2E522D287B27E4FAFFF82D1D98615957DB8E224CB397B2EB67 1567733900
 success
+```
 
-It is also a good idea to create a dedicated ADNL address to be used exclusively for validator purposes:
-
+最好还创建一个专门用于验证者目的的ADNL地址：
+```
 > newkey
 created new key C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C
 > addadnl C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C 0
 success
 > addvalidatoraddr BCA335626726CF2E522D287B27E4FAFFF82D1D98615957DB8E224CB397B2EB67 C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C 1567733900
 success
+```
 
-Now C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C is a new ADNL address, which will be used by the Full Node for running as a validator with the public key BCA...B67, with expiration time set to 1567733900.
+现在C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C是一个新的ADNL地址，将被全节点用于以公钥BCA...B67运行为验证者，过期时间设置为1567733900。
 
-5. Creating an election participation request
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+5. 创建选举参与请求
 
-The special script validator-elect-req.fif (located in <source-dir>/crypto/smartcont) is used to create a message that has to be signed by the validator in order to participate in the elections. It is run as follows:
-
+特殊脚本validator-elect-req.fif（位于<source-dir>/crypto/smartcont）用于创建必须由验证者签名才能参加选举的消息。其运行方式如下：
+```
 $ fift -s validator-elect-req.fif <wallet-addr> <elect-utime> <max-factor> <adnl-addr> [<savefile>]
+```
 
-For example,
-
+例如，
+```
 $ fift -s validator-elect-req.fif kf-vF9tD9Atqok5yA6n4yGUjEMiMElBi0RKf6IPqob1nY2dP 1567633899 2.7 C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C
+```
 
-or, if you have created the controlling wallet by means of new-wallet.fif, you can use @my_wallet_id.addr instead of copying the wallet address kf-vF...dP:
+或者，如果您通过new-wallet.fif创建了控制钱包，您可以使用@my_wallet_id.addr而不是复制钱包地址kf-vF...dP：
 
----------------------------------------
+```
 $ fift -s validator-elect-req.fif @my_wallet_id.addr 1567633899 2.7 C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C
 
 Creating a request to participate in validator elections at time 1567633899 from smart contract Uf+vF9tD9Atqok5yA6n4yGUjEMiMElBi0RKf6IPqob1nY4EA = -1:af17db43f40b6aa24e7203a9f8c8652310c88c125062d1129fe883eaa1bd6763  with maximal stake factor with respect to the minimal stake 176947/65536 and validator ADNL address c5c2b94529405fb07d1ddfb4c42bfb07727e7ba07006b2db569fbf23060b9e5c 
 654C50745D7031EB0002B333AF17DB43F40B6AA24E7203A9F8C8652310C88C125062D1129FE883EAA1BD6763C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C
 ZUxQdF1wMesAArMzrxfbQ_QLaqJOcgOp-MhlIxDIjBJQYtESn-iD6qG9Z2PFwrlFKUBfsH0d37TEK_sHcn57oHAGsttWn78jBgueXA==
----------------------------------------
+```
+在这里<max-factor> = 2.7是允许的您赌注与当选验证者组中最小验证者赌注之间的最大比率。这样您可以确保您的赌注不会超过最小赌注的2.7倍，因此您的验证者的工作量最多是最低的2.7倍。如果您的赌注与其他验证者的赌注相比太大，那么它将被剪切到这个值（最小赌注的2.7倍），剩余部分将在选举后立即退还给您（即，退还给您的验证者的控制智能合约）。
 
-Here <max-factor> = 2.7 is the maximum ratio allowed between your stake and the minimal validator stake in the elected validator group. In this way you can be sure that your stake will be no more than 2.7 times the smallest stake, so the workload of your validator is at most 2.7 times the lowest one. If your stake is too large compared to the stakes of other validators, then it will be clipped to this value (2.7 times the smallest stake), and the remainder will be returned to you (i.e., to the controlling smart contract of your validator) immediately after elections.
-
-Now you obtain a binary string in hexadecimal (654C...9E5C) and base64 form to be signed by the validator. This can be done in validator-engine-console:
-
+现在您获得了一个十六进制的二进制字符串（654C...9E5C）和base64形式，需要由验证者签名。这可以在validator-engine-console中完成：
+```
 > sign BCA335626726CF2E522D287B27E4FAFFF82D1D98615957DB8E224CB397B2EB67 654C50745D7031EB0002B333AF17DB43F40B6AA24E7203A9F8C8652310C88C125062D1129FE883EAA1BD6763C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C
 got signature ovf9cmr2J/speJEtMU+tZm6zH/GBEyZCPpaukqL3mmNH9Wipyoys63VFh0yR386bARHKMPpfKAYBYslOjdSjCQ
+```
+这里BCA...B67是我们验证者的签名密钥的标识符，654...E5C是由validator-elect-req.fif生成的消息。签名是ovf9...jCQ（这是64字节Ed25519签名的base64表示）。
 
-Here BCA...B67 is the identifier of the signing key of our validator, and 654...E5C is the message generated by validator-elect-req.fif. The signature is ovf9...jCQ (this is the base64 representation of 64-byte Ed25519 signature).
+现在您必须运行另一个脚本validator-elect-signed.fif，它也需要验证者的公钥和签名：
 
-Now you have to run another script validator-elect-signed.fif, which also requires the public key and the signature of the validator:
 
-------------------------------------
+```
 $ fift -s validator-elect-signed.fif @my_wallet_id.addr 1567633899 2.7 C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C xrQTSIQEsqZkWnoADMiBnyBFRUUweXTvzRQFqb5nHd5xmeE6 ovf9cmr2J/speJEtMU+tZm6zH/GBEyZCPpaukqL3mmNH9Wipyoys63VFh0yR386bARHKMPpfKAYBYslOjdSjCQ==
 Creating a request to participate in validator elections at time 1567633899 from smart contract Uf+vF9tD9Atqok5yA6n4yGUjEMiMElBi0RKf6IPqob1nY4EA = -1:af17db43f40b6aa24e7203a9f8c8652310c88c125062d1129fe883eaa1bd6763  with maximal stake factor with respect to the minimal stake 176947/65536 and validator ADNL address c5c2b94529405fb07d1ddfb4c42bfb07727e7ba07006b2db569fbf23060b9e5c 
 String to sign is: 654C50745D7031EB0002B333AF17DB43F40B6AA24E7203A9F8C8652310C88C125062D1129FE883EAA1BD6763C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C
@@ -147,15 +151,15 @@ query_id set to 1567632790
 
 Message body is x{4E73744B000000005D702D968404B2A6645A7A000CC8819F20454545307974EFCD1405A9BE671DDE7199E13A5D7031EB0002B333C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C}
  x{A2F7FD726AF627FB2978912D314FAD666EB31FF1811326423E96AE92A2F79A6347F568A9CA8CACEB7545874C91DFCE9B0111CA30FA5F28060162C94E8DD4A309}
-
+```
 Saved to file validator-query.boc
 -----------------------
 
-Alternatively, if you are running validator-engine-console on the same machine as your wallet, you can skip the above steps and instead use the `createelectionbid` command in the Validator Console to directly create a file (e.g., "validator-query.boc") with the message body containing your signed elections participation request. For this command to work, you have to run validator-engine with the `-f <fift-dir>` command-line option, where <fift-dir> is a directory containing copies of all required Fift source files (such as Fift.fif, TonUtil.fif, validator-elect-req.fif, and validator-elect-signed.fif), even though these files normally reside in different source directories (<source-dir>/crypto/fift/lib and <source-dir>/crypto/smartcont).
+或者，如果您在与您的钱包相同的机器上运行validator-engine-console，您可以跳过上述步骤，而是使用Validator Console中的`createelectionbid`命令直接创建一个文件（例如"validator-query.boc"），其中包含包含您签名的选举参与请求的消息体。为此命令工作，您必须使用`-f <fift-dir>`命令行选项运行validator-engine，其中<fift-dir>是包含所有必需Fift源文件副本的目录（例如Fift.fif、TonUtil.fif、validator-elect-req.fif和validator-elect-signed.fif），即使这些文件通常位于不同的源目录（<source-dir>/crypto/fift/lib和<source-dir>/crypto/smartcont）。
 
-Now you have a message body containing your elections participation request. You must send it from the controlling smart contract, carrying the stake as its value (plus one extra Gram for sending confirmation). If you use the simple wallet smart contract, this can be done by using the `-B` command-line argument to wallet.fif:
-
+现在您有一个包含您的选举参与请求的消息体。您必须从控制智能合约发送它，携带赌注作为其价值（外加一个额外的克朗用于发送确认）。如果您使用简单的钱包智能合约，可以通过使用wallet.fif的`-B`命令行参数来完成：
 --------------------------------------------
+```
 $ fift -s wallet.fif my_wallet_id -1:A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA 1 100001. -B validator-query.boc 
 Source wallet address = -1:af17db43f40b6aa24e7203a9f8c8652310c88c125062d1129fe883eaa1bd6763 
 kf-vF9tD9Atqok5yA6n4yGUjEMiMElBi0RKf6IPqob1nY2dP
@@ -176,59 +180,66 @@ resulting external message: x{89FF5E2FB687E816D5449CE40753F190CA4621911824A0C5A2
 
 B5EE9C7241040401000000013D0001CF89FF5E2FB687E816D5449CE40753F190CA4621911824A0C5A2253FD107D5437ACEC6049CF8B8EA035B0446E232DB8C1DFEA97738076162B2E053513310D2A3A66A2A6C16294189F8D60A9E33D1E74518721B126A47DA3A813812959BD0BD607923B010000000080C01016C627FD26163E02D849EA386F118B6DD044FD06EBBAFECD8F5FE4EE4E825A4C69D16ED32D79A60A85000000000000000000000000000010201A84E73744B000000005D702D968404B2A6645A7A000CC8819F20454545307974EFCD1405A9BE671DDE7199E13A5D7031EB0002B333C5C2B94529405FB07D1DDFB4C42BFB07727E7BA07006B2DB569FBF23060B9E5C030080A2F7FD726AF627FB2978912D314FAD666EB31FF1811326423E96AE92A2F79A6347F568A9CA8CACEB7545874C91DFCE9B0111CA30FA5F28060162C94E8DD4A309062A7721
 (Saved to file wallet-query.boc)
+```
 ----------------------------------
 
-Now you just have to send wallet-query.boc from the Lite Client (not the Validator Console):
-
+现在您只需从Lite客户端发送wallet-query.boc（而不是验证者控制台）：
+```
 > sendfile wallet-query.boc
-
-or you can use the Lite Client in batch mode:
-
+```
+或者您可以使用Lite客户端的批处理模式：
+```
 $ lite-client -C <config-file> -c "sendfile wallet-query.boc"
+```
+这是一个由您的私钥签名的外部消息（控制您的钱包）；它指示您的钱包智能合约向选举智能合约发送一个内部消息，其中包含预定的有效载荷（包含验证者出价并由其密钥签名）并转移指定数量的克朗。当选举智能合约收到这个内部消息时，它会注册您的出价（赌注等于指定的克朗数量减一），并向您（即，钱包智能合约）发送确认（携带1克朗减去消息转发费的变更）或带有错误代码的拒绝消息（携带几乎所有原始赌注金额减去处理费）。
 
-This is an external message signed by your private key (which controls your wallet); it instructs your wallet smart contract to send an internal message to the elector smart contract with the prescribed payload (containing the validator bid and signed by its key) and transfer the specified amount of Grams. When the elector smart contract receives this internal message, it registers your bid (with the stake equal to the specified amount of Grams minus one), and sends you (i.e., the wallet smart contract) a confirmation (carrying 1 Gram minus message forwarding fees back) or a rejection message with an error code (carrying back almost all of the original stake amount minus processing fees).
+您可以通过运行选举智能合约的get-method "participant_list"来检查您的赌注是否被接受。
 
-You can check whether your stake has been accepted by running get-method "participant_list" of the elector smart contract.
+6. 回收赌注和奖金
 
-6. Recovering stakes and bonuses
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If your stake is only partially accepted (because of <max-factor>) during the elections, or after your stake is unfrozen (this happens some time after the expiration of the term of the validator group to which your validator has been elected), you may want to collect back all or part of your stake, along with whatever share of bonuses is due to your validator. The elector smart contract does not send the stake and bonuses to you (i.e., the controlling smart contract) in a message. Instead, it credits the amount to be returned to you inside a special table, which can be inspected with the aid of get-method "compute_returned_stake" (which expects the address of the controlling smart contract as an argument):
-
+如果您的赌注在选举中只被部分接受（因为<max-factor>），或者在您的赌注解冻后（这发生在您的验证者当选的验证者组的任期结束后的某个时间），您可能想要收回全部或部分赌注，以及您的验证者应得的奖金份额。选举智能合约不会将赌注和奖金以消息的形式发送给您（即，控制智能合约）。相反，它会将应退还给您的金额记入一个特殊表中，您可以使用get-method "compute_returned_stake"（它期望控制智能合约的地址作为参数）来检查：
+```
 $ lite-client -C global-config.json -rc 'runmethod -1:A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA compute_returned_stake 0xaf17db43f40b6aa24e7203a9f8c8652310c88c125062d1129fe883eaa1bd6763'
 arguments:  [ 79196899299028790296381692623119733846152089453039582491866112477478757689187 130944 ]
 result: [ 0 ]
+```
+如果结果为零，则没有欠您的款项。否则，您将看到部分或全部赌注，可能还有一些奖金。在这种情况下，您可以使用recover-stake.fif创建赌注回收请求：
 
-If the result is zero, nothing is due to you. Otherwise, you'll see part or all of your stake, perhaps with some bonuses. In that case, you can create a stake recovery request by using recover-stake.fif:
 
 -----------------------------
+```
 $ fift -s recover-stake.fif
 query_id for stake recovery message is set to 1567634299 
 
 Message body is x{47657424000000005D70337B}
-
+```
 Saved to file recover-query.boc
 -----------------------------
 
-Again, you have to send recover-query.boc as the payload of a message from the controlling smart contract (i.e., your wallet) to the elector smart contract:
+再次，您必须将recover-query.boc作为消息的有效载荷从控制智能合约（即，您的钱包）发送到选举智能合约：
 
+```
 $ fift -s wallet.fif my_wallet_id <dest-addr> <my-wallet-seqno> <gram-amount> -B recover-query.boc
-
+```
 For example,
-
+```
 $ fift -s wallet.fif my_wallet_id -1:A4C2C7C05B093D470DE2316DBA089FA0DD775FD9B1EBFC9DC9D04B498D3A2DDA 2 1. -B recover-query.boc 
 ...
+```
 (Saved to file wallet-query.boc)
 
-Notice that this message carries a small value (one Gram) just to pay the message forwarding and processing fees. If you indicate a value equal to zero, the message will not be processed by the election smart contract (a message with exactly zero value is almost useless in the TON Blockchain context).
+请注意，此消息携带一个小值（一个克朗）仅用于支付消息转发和处理费。如果您指示的值为零，则选举智能合约将不会处理该消息（在TON区块链的上下文中，几乎没有任何用途的消息的值恰好为零）。
 
-Once wallet-query.boc is ready, you can send it from the Lite Client:
+一旦准备好wallet-query.boc，您可以从Lite客户端发送它：
 
+```
 $ liteclient -C <config> -c 'sendfile wallet-query.boc'
+```
+如果您做的一切正确（特别是指示了您的钱包的正确seqno而不是示例中的“2”），您将从选举智能合约获得一个消息，其中包含您请求的少量价值的变更（本例中为1.克朗）加上恢复的赌注和奖金部分。
 
-If you have done everything correctly (in particular indicated the correct seqno of your wallet instead of "2" in the example above), you'll obtain a message from the elector smart contract containing the change from the small value you sent with your request (1. Gram in this example) plus the recovered portion of your stake and bonuses.
+7. 参加下一次选举
 
-7. Participating in the next elections
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Notice that even before the term of the validator group containing your elected validator finishes, new elections for the next validator group will be announced. You'll probably want to participate in them as well. For this, you can use the same validator, but you must generate a new validator key and new ADNL address. You'll also have to make a new stake before your previous stake is returned (because your previous stake will be unfrozen and returned only some time after the next validator group becomes active), so if you want to participate in concurrent elections, it likely does not make sense to stake more than half of your Grams.
+请注意，即使在包含您的当选验证者的验证者组的任期结束之前，也会宣布下一组验证者的新的选举。您可能也希望参加它们。
+为此，您可以使用相同的验证者，但您必须生成一个新的验证者密钥和新的ADNL地址。
+您还必须在之前的赌注被退回之前做出新的赌注（因为您的之前的赌注只有在下一组验证者变得活跃后的某个时间才会解冻并退回），
+所以如果您想参加并发选举，那么将您的克朗赌注超过一半可能没有意义。
