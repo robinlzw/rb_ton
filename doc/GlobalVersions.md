@@ -1,99 +1,103 @@
-# Global versions
-Global version is a parameter specified in `ConfigParam 8` ([block.tlb](https://github.com/ton-blockchain/ton/blob/master/crypto/block/block.tlb#L595)).
-Various features are enabled depending on the global version.
+## 全球版本（Global Versions）
 
-## Version 4
+全局版本是通过`ConfigParam 8`指定的参数（[block.tlb](https://github.com/ton-blockchain/ton/blob/master/crypto/block/block.tlb#L595)）。
+不同的全局版本启用TON区块链中的各种功能。
 
-### New TVM instructions
-* `PREVMCBLOCKS`, `PREVKEYBLOCK`
-* `GLOBALID`
-* `HASHEXT(A)(R)`
-* `ECRECOVER`
-* `SENDMSG`
-* `RUNVM`, `RUNVMX`
-* `GASCONSUMED`
-* `RIST255_...` instructions
-* `BLS_...` instructions
-* `P256_CHKSIGNS`, `P256_CHKSIGNU`
+### 版本 4
 
-### Division
-[Division instruction](https://ton.org/docs/learn/tvm-instructions/instructions#52-division) can add a number to the
-intermediate value before division (e.g. `(xy+w)/z`).
+#### 新的 TVM 指令
+- `PREVMCBLOCKS`, `PREVKEYBLOCK`
+- `GLOBALID`
+- `HASHEXT(A)(R)`
+- `ECRECOVER`
+- `SENDMSG`
+- `RUNVM`, `RUNVMX`
+- `GASCONSUMED`
+- `RIST255_...` 指令
+- `BLS_...` 指令
+- `P256_CHKSIGNS`, `P256_CHKSIGNU`
 
-### Stack operations
-* Arguments of `PICK`, `ROLL`, `ROLLREV`, `BLKSWX`, `REVX`, `DROPX`, `XCHGX`, `CHKDEPTH`, `ONLYTOPX`, `ONLYX` are now unlimited.
-* `ROLL`, `ROLLREV`, `BLKSWX`, `REVX`, `ONLYTOPX` consume more gas when arguments are big.
+#### 除法
+[除法指令](https://ton.org/docs/learn/tvm-instructions/instructions#52-division)可以在除法之前向中间值添加一个数（例如 `(xy+w)/z`）。
 
-### c7 tuple
-**c7** tuple extended from 10 to 14 elements:
-* **10**: code of the smart contract.
-* **11**: value of the incoming message.
-* **12**: fees collected in the storage phase.
-* **13**: information about previous blocks.
+#### 栈操作
+- `PICK`, `ROLL`, `ROLLREV`, `BLKSWX`, `REVX`, `DROPX`, `XCHGX`, `CHKDEPTH`, `ONLYTOPX`, `ONLYX` 的参数现在是无限的。
+- 当参数很大时，`ROLL`, `ROLLREV`, `BLKSWX`, `REVX`, `ONLYTOPX` 消耗更多的Gas。
 
-### Action phase
-* If "send message" action fails, the account is required to pay for processing cells of the message.
-* Flag +16 in actions "Send message", "Reserve", "Change library" causes bounce if action fails.
+#### c7 元组
+**c7** 元组从10个元素扩展到14个元素：
+- **10**: 智能合约的代码。
+- **11**: 收到消息的值。
+- **12**: 存储阶段收集的费用。
+- **13**: 以前区块的信息。
 
-### Storage phase
-* Unpaid storage fee is now saved to `due_payment`
+#### 行动阶段
+- 如果“发送消息”操作失败，账户必须支付处理消息单元的费用。
+- 在“发送消息”、“保留”、“更改库”操作中，如果操作失败，带有 +16 标志的操作会反弹（bounce）。
 
-## Version 5
+#### 存储阶段
+- 未支付的存储费用现在保存到 `due_payment`。
 
-### Gas limits
-Version 5 enables higher gas limits for special contracts.
+### 版本 5
 
-* Gas limit for all transactions on special contracts is set to `special_gas_limit` from `ConfigParam 20` (which is 35M at the moment of writing). 
-Previously only ticktock transactions had this limit, while ordinary transactions had a default limit of `gas_limit` gas (1M).
-* Gas usage of special contracts is not taken into account when checking block limits. This allows keeping masterchain block limits low
-while having high gas limits for elector.
-* Gas limit on `EQD_v9j1rlsuHHw2FIhcsCFFSD367ldfDdCKcsNmNpIRzUlu` is increased to `special_gas_limit * 2` until 2024-02-29.
-See [this post](https://t.me/tonstatus/88) for details.
+#### Gas 限制
+版本 5 增加了特殊合约的Gas限制。
+- 所有特殊合约交易的Gas限制设置为`ConfigParam 20`中的`special_gas_limit`（在写作时为35M）。以前，只有ticktock交易有这个限制，而普通交易的默认限制是 `gas_limit` Gas（1M）。
+- 特殊合约的Gas使用在检查区块限制时不被考虑。这允许在保持主链区块限制较低的同时，为选举人提供较高的Gas限制。
+- `EQD_v9j1rlsuHHw2FIhcsCFFSD367ldfDdCKcsNmNpIRzUlu` 的Gas限制增加到 `special_gas_limit * 2`，直到2024-02-29（[来源](https://t.me/tonstatus/88)）。
 
-### Loading libraries
-* Loading "nested libraries" (i.e. a library cell that points to another library cell) throws an exception.
-* Loading a library consumes gas for cell load only once (for the library cell), not twice (both for the library cell and the cell in the library).
-* `XLOAD` now works differently. When it takes a library cell, it returns the cell that it points to. This allows loading "nested libraries", if needed.
+#### 加载库
+- 加载“嵌套库”（即一个库单元指向另一个库单元）时会抛出异常。
+- 加载库只消耗一次单元加载的Gas，而不是两次。
+- `XLOAD` 返回库单元指向的单元，这允许在需要时加载嵌套库。
 
-## Version 6
+### 版本 6
 
-### c7 tuple
-**c7** tuple extended from 14 to 17 elements:
-* **14**: tuple that contains some config parameters as cell slices. If the parameter is absent from the config, the value is null. Asm opcode: `UNPACKEDCONFIGTUPLE`.
-  * **0**: `StoragePrices` from `ConfigParam 18`. Not the whole dict, but only the one StoragePrices entry (one which corresponds to the current time).
-  * **1**: `ConfigParam 19` (global id).
-  * **2**: `ConfigParam 20` (mc gas prices).
-  * **3**: `ConfigParam 21` (gas prices).
-  * **4**: `ConfigParam 24` (mc fwd fees).
-  * **5**: `ConfigParam 25` (fwd fees).
-  * **6**: `ConfigParam 43` (size limits).
-* **15**: "[due payment](https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L237)" - current debt for storage fee (nanotons). Asm opcode: `DUEPAYMENT`.
-* **16**: "precompiled gas usage" - gas usage for the current contract if it is precompiled (see `ConfigParam 45`), `null` otherwise. Asm opcode: `GETPRECOMPILEDGAS`.
+#### c7 元组
+**c7** 元组从14个元素扩展到17个元素：
+- **14**: 包含一些配置参数的元组，以单元切片形式表示。
+  - **0**: 来自`ConfigParam 18`的`StoragePrices`。
+  - **1**: `ConfigParam 19`（全局ID）。
+  - **2**: `ConfigParam 20`（主链Gas价格）。
+  - **3**: `ConfigParam 21`（Gas价格）。
+  - **4**: `ConfigParam 24`（主链转发费）。
+  - **5**: `ConfigParam 25`（转发费）。
+  - **6**: `ConfigParam 43`（尺寸限制）。
+- **15**: `due_payment` - 当前存储费用的债务（纳吨）。
+- **16**: 当前合约的预编译Gas使用量（如果是预编译的，根据`ConfigParam 45`）。
 
-### New TVM instructions
+#### 新的 TVM 指令
 
-#### Fee calculation
-* `GETGASFEE` (`gas_used is_mc - price`) - calculates gas fee.
-* `GETSTORAGEFEE` (`cells bits seconds is_mc - price`) - calculates storage fees (only current StoragePrices entry is used).
-* `GETFORWARDFEE` (`cells bits is_mc - price`) - calculates forward fee.
-* `GETPRECOMPILEDGAS` (`- x`) - returns gas usage for the current contract if it is precompiled, `null` otherwise.
-* `GETORIGINALFWDFEE` (`fwd_fee is_mc - orig_fwd_fee`) - calculate `fwd_fee * 2^16 / first_frac`. Can be used to get the original `fwd_fee` of the message.
-* `GETGASFEESIMPLE` (`gas_used is_mc - price`) - same as `GETGASFEE`, but without flat price (just `(gas_used * price) / 2^16`).
-* `GETFORWARDFEESIMPLE` (`cells bits is_mc - price`) - same as `GETFORWARDFEE`, but without lump price (just `(bits*bit_price + cells*cell_price) / 2^16`).
+##### 费用计算
+- `GETGASFEE`: 计算Gas费用。
+- `GETSTORAGEFEE`: 计算存储费用。
+- `GETFORWARDFEE`: 计算转发费用。
+- `GETPRECOMPILEDGAS`: 返回当前合约的预编译Gas使用量（如果是预编译的）。
+- `GETORIGINALFWDFEE`: 计算消息的原始转发费。
+- `GETGASFEESIMPLE`: 计算没有固定价格的Gas费用。
+- `GETFORWARDFEESIMPLE`: 计算没有总价格的转发费用。
 
-`gas_used`, `cells`, `bits`, `time_delta` are integers in range `0..2^63-1`.
+##### 单元操作
+用于处理Merkle证明的操作：
+- `CLEVEL`: 返回单元的级别。
+- `CLEVELMASK`: 返回单元的级别掩码。
+- `i CHASHI`: 返回单元的第 `i` 个哈希值。
+- `i CDEPTHI`: 返回单元的第 `i` 个深度。
+- `CHASHIX`: 返回单元的第 `i` 个哈希值。
+- `CDEPTHIX`: 返回单元的第 `i` 个深度。
 
-#### Cell operations
-Operations for working with Merkle proofs, where cells can have non-zero level and multiple hashes.
-* `CLEVEL` (`cell - level`) - returns level of the cell.
-* `CLEVELMASK` (`cell - level_mask`) - returns level mask of the cell.
-* `i CHASHI` (`cell - hash`) - returns `i`th hash of the cell.
-* `i CDEPTHI` (`cell - depth`) - returns `i`th depth of the cell.
-* `CHASHIX` (`cell i - hash`) - returns `i`th hash of the cell.
-* `CDEPTHIX` (`cell i - depth`) - returns `i`th depth of the cell.
+#### 其他更改
+- `GLOBALID` 从元组中获取 `ConfigParam 19`，减少Gas使用。
+- `SENDMSG` 从元组中获取 `ConfigParam 24/25`（消息价格），并使用 `ConfigParam 43` 获取最大消息单元。
 
-`i` is in range `0..3`.
+### 版本 7
 
-### Other changes
-* `GLOBALID` gets `ConfigParam 19` from the tuple, not from the config dict. This decreases gas usage.
-* `SENDMSG` gets `ConfigParam 24/25` (message prices) from the tuple, not from the config dict, and also uses `ConfigParam 43` to get max_msg_cells.
+[明确归零](https://github.com/ton-blockchain/ton/pull/957/files) `due_payment` 在支付到期债务后。
+
+### 版本 8
+
+- 在无效的 `action_send_msg` 上检查模式。如果设置了 `IGNORE_ERROR` (+2) 位，忽略操作；如果设置了 `BOUNCE_ON_FAIL` (+16) 位，则反弹（bounce）。
+- 更改随机种子生成以修复 `addr_rewrite` 和 `addr` 的混合问题。
+- 对于无法发送的无效和有效消息，将 `IGNORE_ERROR` 模式的 `skipped_actions` 填写。
+- 允许通过外部消息解冻。
+
