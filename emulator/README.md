@@ -1,32 +1,32 @@
-# Emulator
+# 模拟器
 
-Emulator is a shared library containing the following functionality:
-- Emulating blockchain transactions
-- Emulating TVM - get methods and sending external and internal messages.
+模拟器是一个共享库，包含以下功能：
+- 模拟区块链交易
+- 模拟 TVM（TON虚拟机） - 包括获取方法和发送外部及内部消息。
 
-## Transaction Emulator
+## 交易模拟器
 
-To emulate transaction you need the following data:
+要模拟交易，你需要以下数据：
 
-- Account state of type *ShardAccount*.
-- Global config of type *(Hashmap 32 ^Cell)*.
-- Inbound message of type *MessageAny*.
+- 类型为 *ShardAccount* 的账户状态。
+- 类型为 *(Hashmap 32 ^Cell)* 的全局配置。
+- 类型为 *MessageAny* 的入站消息。
 
-Optionally you can set emulation parameters:
-- *ignore_chksig* - whether CHKSIG instructions are set to always succeed. Default: *false*
-- *lt* - logical time of emulation. Default: next block's lt after the account's last transaction block.
-- *unixtime* - unix time of emulation. Default: current system time
-- *rand_seed* - random seed. Default: generated randomly
-- *libs* - shared libraries. If your smart contract uses shared libraries (located in masterchain), you should set this parameter.
+你可以选择设置模拟参数：
+- *ignore_chksig* - 是否将 CHKSIG 指令设置为总是成功。默认值：*false*
+- *lt* - 模拟的逻辑时间。默认值：在账户上次交易区块后的下一个区块的 lt。
+- *unixtime* - 模拟的 Unix 时间。默认值：当前系统时间
+- *rand_seed* - 随机种子。默认值：随机生成
+- *libs* - 共享库。如果你的智能合约使用了共享库（位于主链上），你应该设置此参数。
 
-Emulator output contains:
-- Transaction object (*Transaction*)
-- New account state (*ShardAccount*)
-- Actions cell (*OutList n*)
-- TVM log
+模拟器输出包含：
+- 交易对象 (*Transaction*)
+- 新的账户状态 (*ShardAccount*)
+- 操作单元 (*OutList n*)
+- TVM 日志
 
-## TVM Emulator
+## TVM 模拟器
 
-TVM emulator is intended to run get methods or emulate sending message on TVM level. It is initialized with smart contract code and data cells. 
-- To run get method you pass *initial stack* and *method id* (as integer).
-- To emulate sending message you pass *message body* and in case of internal message *amount* in nanograms.
+TVM 模拟器用于运行获取方法或在 TVM 层级模拟发送消息。它通过智能合约代码和数据单元进行初始化。
+- 要运行获取方法，你需要传递 *初始堆栈* 和 *方法 ID*（作为整数）。
+- 要模拟发送消息，你需要传递 *消息体*，对于内部消息还需传递 *金额*（以纳克朗为单位）。

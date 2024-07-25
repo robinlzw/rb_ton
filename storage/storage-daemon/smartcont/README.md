@@ -1,23 +1,25 @@
-# Storage Provider
-Simple smart-contract system for conclusion of a storage agreements.
-- guarantees that the provider stores the file
-- no storage - no payment
-- no penalties, if provider doesn't store file client can stop payment at any time
-- no control that provider upload the file: client can stop payment at any time if not satisfied
+# 存储提供者
 
-## Storage Agreements Fabric
+一个简单的智能合约系统，用于建立存储协议。
+- 保证提供者存储文件
+- 没有存储就没有支付
+- 如果提供者不存储文件，不会有处罚，客户可以随时停止支付
+- 不控制提供者上传文件的行为：如果不满意，客户可以随时停止支付
 
-Storage provider deploy storage agreements fabric. Any client may request fabric to deploy storage agreement contract.
-Fabric provides get-method `get_storage_params` which returns
-- `accept_new_contracts?` - whether provider accepts new contracts
-- `rate_per_mb_day` - price in nanoTON per Megabyte per day
-- `max_span` - maximal timespan between proving file storage which will be paid
-- `minimal_file_size` - minimal file size accepted by provider
-- `maximal_file_size` - maximal file size accepted by provider
+## 存储协议工厂
 
-## Storage agreement
-Agreement contract has client account and accept deposits to this account.
+存储提供者部署存储协议工厂。任何客户都可以请求工厂部署存储协议合约。
+工厂提供了一个名为 `get_storage_params` 的 get-method 方法，返回以下信息：
+- `accept_new_contracts?` - 提供者是否接受新合约
+- `rate_per_mb_day` - 每兆字节每天的价格，以 nanoTON 计价
+- `max_span` - 支付存储证明的最大时间间隔
+- `minimal_file_size` - 提供者接受的最小文件大小
+- `maximal_file_size` - 提供者接受的最大文件大小
 
-It also knows merkle root and allows provider to withdraw money from client account by providing merkle proof of file storage.
+## 存储协议
 
-Client can stop agreement at any time.
+协议合约包含客户账户并接受该账户的存款。
+
+它还知道默克尔根，并允许提供者通过提供文件存储的默克尔证明从客户账户中提取资金。
+
+客户可以随时终止协议。

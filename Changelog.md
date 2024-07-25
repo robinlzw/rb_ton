@@ -1,191 +1,112 @@
-## 2024.06 Update
+## 2024年6月更新
 
-1. Make Jemalloc default allocator
-2. Add candidate broadcasting and caching
-3. Limit per address speed for external messages broadcast by reasonably large number 
-4. Overlay improvements: fix dropping peers in small custom overlays, fix wrong certificate on missed keyblocks
-5. Extended statistics and logs for celldb usage, session stats, persistent state serialization
-6. Tonlib and explorer fixes
-7. Flags for precize control of Celldb: `--celldb-cache-size`, `--celldb-direct-io` and `--celldb-preload-all`
-8. Add valiator-console command to stop persistent state serialization
-9. Use `@` path separator for defining include path in fift and create-state utilities on Windows only.
+1. **将Jemalloc设为默认内存分配器**
+2. **新增候选广播和缓存**
+3. **限制单个地址外部消息广播的速度，设定为合理的高值**
+4. **覆盖改进**：修复在小型自定义覆盖网络中丢失对等节点的问题，修复在错过密钥区块时使用错误证书的问题
+5. **扩展的统计数据和日志**：用于Celldb的使用、会话统计和持久状态序列化
+6. **Tonlib和浏览器修复**
+7. **Celldb的精确控制标志**：`--celldb-cache-size`、`--celldb-direct-io` 和 `--celldb-preload-all`
+8. **新增validator-console命令**：停止持久状态序列化
+9. **使用`@`作为路径分隔符**（仅适用于Windows上的fift和create-state工具）
 
+## 2024年4月更新
 
-## 2024.04 Update
+1. **模拟器**：新增单次调用优化的runGetMethod方法
+2. **Tonlib**：系列改进，包含对`liteServer.getAllShardsInfo`方法的重大更改（详见下文）
+3. **数据库**：现在收集使用统计数据，不再序列化过时的持久状态
+4. **LiteServer**：新增快速`getOutMsgQueueSizes`方法，预支持非最终区块请求
+5. **网络**：块候选人的lz4压缩（默认禁用）
+6. **覆盖网络**：新增自定义覆盖网络
+7. **交易执行器**：修复了due_payment收集问题
 
-1. Emulator: Single call optimized runGetMethod added
-2. Tonlib: a series of proof improvements, also breaking Change in `liteServer.getAllShardsInfo` method (see below)
-3. DB: usage statistics now collected, outdated persistent states are not serialized
-4. LS: fast `getOutMsgQueueSizes` added, preliminary support of non-final block requests
-5. Network: lz4 compression of block candidates (disabled by default).
-6. Overlays: add custom overlays
-7. Transaction Executor: fixed issue with due_payment collection
+`liteServer.getAllShardsInfo`方法更新以提高效率。此前，proof字段包含两个根的BoC：一个来自块根的BlockState，另一个来自BlockState的ShardHashes。现在，它返回单根proof BoC，具体来说是直接来自块根的ShardHashes的默克尔证明，简化了数据访问和完整性检查。检查proof需要验证`data`中的ShardHashes是否与块中的ShardHashes一致。
 
-* `liteServer.getAllShardsInfo` method was updated for better efficiency. Previously, field proof contained BoC with two roots: one for BlockState from block's root and another for ShardHashes from BlockState. Now, it returns a single-root proof BoC, specifically the merkle proof of ShardHashes directly from the block's root, streamlining data access and integrity. Checking of the proof requires to check that ShardHashes in the `data` correspond to ShardHashes from the block.
+此外，这次更新还基于@akifoq的努力解决了due_payment问题。
 
-Besides the work of the core team, this update is based on the efforts of @akifoq (due_payment issue).
+## 2024年3月更新
 
-## 2024.03 Update
+1. **准备性代码（尚未启用）**：用于预编译智能合约
+2. **与费用相关的操作码的小修**
 
-1. Preparatory (not enabled yet) code for pre-compiled smart-contract.
-2. Minor fixes for fee-related opcodes.
+## 2024年2月更新
 
-## 2024.02 Update
+1. **改进验证器同步**：
+   * 更好地处理区块广播 -> 更快的同步
+   * 额外的独立覆盖网络作为同步的第二选择
+2. **LiteServer改进**：
+   * 完整填充c7和库上下文用于服务器端的rungetmethod
+   * runmethods和成功的外部消息缓存
+   * 记录LiteServer请求统计数据
+3. **精确控制打开的文件**：
+   * 几乎即时的验证器启动
+   * `--max-archive-fd`选项
+   * 自动删除未使用的临时存档文件
+   * `--archive-preload-period`选项
+4. **准备性代码（尚未启用）**：用于新增的TVM指令，以便在链上降低费用计算
 
-1. Improvement of validator synchronisation:
-   * Better handling of block broadcasts -> faster sync
-   * Additional separate overlay among validators as second option for synchronisation
-2. Improvements in LS:
-   * c7 and library context is fully filled up for server-side rungetmethod
-   * Cache for runmethods and successfull external messages
-   * Logging of LS requests statistic
-3. Precise control of open files:
-   * almost instantaneous validator start
-   * `--max-archive-fd` option
-   * autoremoval of not used temp archive files
-   * `--archive-preload-period` option
-4. Preparatory (not enabled yet) code for addition on new TVM instructions for cheaper fee calculation onchain.
+## 2024年1月更新
 
-## 2024.01 Update
+1. **修正交易中特殊账户的gas计算问题**。此前，gas按常规计算，因此为了进行成本超过30m gas的选举，主链块限制设为37m gas。为安全考虑，提议对特殊账户的交易单独计算gas。此外，对于所有类型的特殊账户交易，将`gas_max`设为`special_gas_limit`。新行为通过设置`ConfigParam 8`中的`version >= 5`来激活。
+   * 此外，通过更新配置临时将地址`EQD_v9j1rlsuHHw2FIhcsCFFSD367ldfDdCKcsNmNpIRzUlu`的gas上限设置为`special_gas_limit`，详见[详情](https://t.me/tonstatus/88)。
+2. **LiteServer行为改进**
+   * 改进所有分片应用状态的检测，以减少“块未应用”错误率
+   * 更好的错误日志：分离“块不在数据库中”和“块未应用”错误
+   * 修复合并后块的proof生成错误
+   * 修复与Proofs中发送过于近期的块相关的大部分“块未应用”问题
+   * LiteServer现在在`accept_message`（`set_gas`）之前检查外部消息。
+3. **改进DHT工作和存储**、Celldb、config.json修正、对等行为不良检测、验证器会话统计收集、模拟器。
+4. **CTOS和XLOAD行为的更改**通过在`ConfigParam 8`中设置`version >= 5`激活：
+   * 加载“嵌套库”（即指向另一个库单元的库单元）会抛出异常。
+   * 加载库只为库单元加载一次单元，而不是两次（库单元和库中的单元）。
+   * `XLOAD`现在有不同的工作方式。当它获取一个库单元时，它返回指向的单元。这允许在需要时加载“嵌套库”。
 
-1. Fixes in how gas in transactions on special accounts is accounted in block limit. Previously, gas was counted as usual, so to conduct elections that costs >30m gas block limit in masterchain was set to 37m gas. To lower the limit for safety reasons it is proposed to caunt gas on special accounts separately. Besides `gas_max` is set to `special_gas_limit` for all types of transactions on special accounts. New behavior is activated through setting `version >= 5` in `ConfigParam 8;`.
-   * Besides update of config temporally increases gas limit on `EQD_v9j1rlsuHHw2FIhcsCFFSD367ldfDdCKcsNmNpIRzUlu` to `special_gas_limit`, see [details](https://t.me/tonstatus/88).
-2. Improvements in LS behavior
-   * Improved detection of the state with all shards applied to decrease rate of `Block is not applied` error
-   * Better error logs: `block not in db` and `block is not applied` separation
-   * Fix error in proof generation for blocks after merge
-   * Fix most of `block is not applied` issues related to sending too recent block in Proofs
-   * LS now check external messages till `accept_message` (`set_gas`).
-3. Improvements in DHT work and storage, CellDb, config.json ammendment, peer misbehavior detection, validator session stats collection, emulator.
-4. Change in CTOS and XLOAD behavior activated through setting `version >= 5` in `ConfigParam 8;`:
-   * Loading "nested libraries" (i.e. a library cell that points to another library cell) throws an exception.
-   * Loading a library consumes gas for cell load only once (for the library cell), not twice (both for the library cell and the cell in the library).
-   * `XLOAD` now works differently. When it takes a library cell, it returns the cell that it points to. This allows loading "nested libraries", if needed.
+此外，这次更新还基于@XaBbl4（对等行为不良检测）和@akifoq（CTOS行为和特殊账户的gas限制方案）的努力。
 
-Besides the work of the Core team, this update is based on the efforts of @XaBbl4 (peer misbehavior detection) and @akifoq (CTOS behavior and gas limit scheme for special accounts).
+## 2023年12月更新
 
-## 2023.12 Update
+1. **优化消息队列处理**，现在队列清理速度不再取决于总队列大小
+   * 使用lt增强而非随机搜索/连续遍历清理已交付消息
+   * 将队列消息的根单元保存在内存中直到过时（缓存）
+2. **区块整合/验证限制的变更**
+3. **当消息队列过载时停止接受新的外部消息**
+4. **根据队列大小设置分片拆分/合并条件**
 
-1. Optimized message queue handling, now queue cleaning speed doesn't depend on total queue size
-     * Cleaning delivered messages using lt augmentation instead of random search / consequtive walk
-     * Keeping root cell of queue message in memory until outdated (caching)
-2. Changes to block collation/validation limits
-3. Stop accepting new external message if message queue is overloaded
-4. Introducing conditions for shard split/merge based on queue size
+阅读更多[更新信息](https://blog.ton.org/technical-report-december-5-inscriptions-launch-on-ton)。
 
-Read [more](https://blog.ton.org/technical-report-december-5-inscriptions-launch-on-ton) on that update.
+## 2023年11月更新
 
-## 2023.11 Update
+1. **新增TVM功能**（默认禁用）
+2. **模拟器改进**：支持库、更高的最大堆栈大小等
+3. **Tonlib和tonlib-cli改进**：支持wallet-v4、getconfig、showtransactions等
+4. **公共库变更**：现在合约不能发布超过256个库（配置参数），合约不能在initstate中使用公共库（需要显式发布所有库）
+5. **存储到期支付变更**：现在到期支付在存储阶段收集，但对于可反弹的消息，费用金额不能超过消息前账户余额
 
-1. New TVM Functionality. (Disabled by default)
-2. A series of emulator improvements: libraries support, higher max stack size, etc
-3. A series of tonlib and tonlib-cli improvements: wallet-v4 support, getconfig, showtransactions, etc
-4. Changes to public libraries: now contract can not publish more than 256 libraries (config parameter) and contracts can not be deployed with public libraries in initstate (instead contracts need explicitly publish all libraries)
-5. Changes to storage due payment: now due payment is collected in Storage Phase, however for bouncable messages fee amount can not exceed balance of account prior to message.
+此外，这次更新还基于@aleksej-paschenko（模拟器改进）、@akifoq（安全改进）、Trail of Bits审计员以及所有[TEP-88讨论](https://github.com/ton-blockchain/TEPs/pull/88)的参与者的努力。
 
+## 2023年10月更新
+1. **节点的一系列额外安全检查**：操作列表中的特殊单元、外部消息中的初始状态、保存到磁盘之前的对等数据。
+2. **浏览器中人类可读的时间戳**
 
-Besides the work of the core team, this update is based on the efforts of @aleksej-paschenko (emulator improvements), @akifoq (security improvements), Trail of Bits auditor as well as all participants of [TEP-88 discussion](https://github.com/ton-blockchain/TEPs/pull/88).
+此外，这次更新还基于@akifoq和@mr-tron的努力。
 
-## 2023.10 Update
-1. A series of additional security checks in node: special cells in action list, init state in external messages, peers data prior to saving to disk.
-2. Human-readable timestamps in explorer
+## 2023年6月更新
+1. （默认禁用）**新的通货紧缩机制**：部分费用燃烧和黑洞地址
+2. **存储合约改进**
 
-Besides the work of the core team, this update is based on the efforts of @akifoq and @mr-tron.
+此外，这次更新还基于Tonbyte的@DearJohnDoe（存储合约改进）的努力。
 
-## 2023.06 Update
-1. (disabled by default) New deflation mechanisms: partial fee burning and blackhole address
-2. Storage-contract improvement
+## 2023年5月更新
+1. **归档管理器优化**
+2. **一系列catchain（基本共识协议）安全改进**
+3. **Fift库和FunC更新**：更好的错误处理，修复`catch`堆栈恢复
+4. **一系列消息队列处理优化**（已经在紧急升级中部署）
+5. **改进二进制文件的可移植性**
 
-Besides the work of the core team, this update is based on the efforts of @DearJohnDoe from Tonbyte (Storage-contract improvement).
+此外，这次更新还基于@aleksej-paschenko（可移植性改进）、[Disintar团队](https://github.com/disintar/)（归档管理器优化）和[sec3-service](https://github.com/sec3-service)安全审计员（funC改进）的努力。
 
-## 2023.05 Update
-1. Archive manager optimization
-2. A series of catchain (basic consensus protocol) security improvements
-3. Update for Fift libraries and FunC: better error-handling, fixes for `catch` stack recovery
-4. A series of out message queue handling optimization (already deployed during emergency upgrades between releases)
-5. Improvement of binaries portability
-
-Besides the work of the core team, this update is based on the efforts of @aleksej-paschenko (portability improvement), [Disintar team](https://github.com/disintar/) (archive manager optimization) and [sec3-service](https://github.com/sec3-service) security auditors (funC improvements).
-
-## 2023.04 Update
-1. CPU load optimization: previous DHT reconnect policy was too aggressive
-2. Network throughput improvements: granular control on external message broadcast, optimize celldb GC, adjust state serialization and block downloading timings, rldp2 for states and archives 
-3. Update for Fift (namespaces) and Fift libraries (list of improvements: https://github.com/ton-blockchain/ton/issues/631)
-4. Better handling of incorrect inputs in funC: fix UB and prevent crashes on some inputs, improve optimizing int consts and unused variables in FunC, fix analyzing repeat loop. FunC version is increase to 0.4.3.
-5. `listBlockTransactionsExt` in liteserver added
-6. Tvm emulator improvements
-
-Besides the work of the core team, this update is based on the efforts of @krigga (tvm emulator improvement), @ex3ndr (`PUSHSLICE` fift-asm improvement) and [sec3-service](https://github.com/sec3-service) security auditors (funC improvements).
-
-## 2023.03 Update
-1. Improvement of ADNL connection stability
-2. Transaction emulator support and getAccountStateByTransaction method
-3. Fixes of typos, undefined behavior and timer warnings
-4. Handling incorrect integer literal values in funC; funC version bumped to 0.4.2
-5. FunC Mathlib
-
-## 2023.01 Update
-1. Added ConfigParam 44: `SuspendedAddressList`. Upon being set this config suspends initialisation of **uninit** addresses from the list for given time.
-2. FunC: `v0.4.1` added pragmas for precise control of computation order
-3. FunC: fixed compiler crashes for some exotic inputs
-4. FunC: added legacy tester, a collection of smart-contracts which is used to check whether compilator update change compilation result
-5. Improved archive manager: proper handling of recently garbage-collected blocks
-
-## 2022.12 Update
-Node update:
-1. Improvements of ton-proxy: fixed few bugs, improved stability
-2. Improved collator/validator checks, added optimization of storage stat calculation, generation and validation of new blocks is made safer
-3. Some previously hard-coded parameters such as split/merge timings, max sizes and depths of internal and external messages, and others now can be updated by validators through setting ConfigParams. Max contract size added to configs.
-4. Tonlib: updated raw.getTransactions (now it contains InitState), fixed long bytestrings truncation
-5. abseil-cpp is updated to newer versions
-6. Added configs for Token Bridge
-7. LiteServers: a few bug fixes, added liteServer.getAccountStatePrunned method, improved work with not yet applied blocks.
-8. Improved DHT: works for some NAT configurations, optimized excessive requests, added option for DHT network segregation.
-9. FunC v0.4.0: added try/catch statements, added throw_arg functions, allowed in-place modification of global variables, forbidden ambiguous modification of local variables after it's usage in the same expression.
-10. TON Storage: added storage-daemon (create, download bag of Files, storage-provider staff), added storage-daemon-cli
-
-Besides the work of the core team, this update is based on the efforts of @vtamara (help with abseil-cpp upgrade), @krigga(in-place modification of global variables) and third-party security auditors.
-
-## 2022.10 Update
-* Added extended block creation and general perfomance stats gathering
-* Forbidden report data on blocks not committed to the master chain for LS
-* Improved debug in TVM
-* FunC 0.3.0: multi-line asms, bitwise operations for constants, duplication of identical definition for constants and asms now allowed
-* New tonlib methods: sendMessageReturnHash, getTransactionsV2, getMasterchainBlockSignatures, getShardBlockProof, getLibraries.
-* Fixed bugs related to invalid TVM output (c4, c5, libaries) and non-validated network data; avoided too deep recursion in libraries loading
-* Fixed multiple undefined behavior issues
-* Added build of FunC and Fift to WASM
-
-Besides the work of the core team, this update is based on the efforts of @tvorogme (debug improvements), @AlexeyFSL (WASM builds)  and third-party security auditors.
-
-## 2022.08 Update
-* Blockchain state serialization now works via separate db-handler which simplfies memory clearing after serialization
-* CellDB now works asynchronously which substantially increase database access throughput
-* Abseil-cpp and crc32 updated: solve issues with compilation on recent OS distributives
-* Fixed a series of UBs and issues for exotic endianness hosts
-* Added detailed network stats for overlays (can be accessed via `validator-console`)
-* Improved auto-builds for wide range of systems.
-* Added extended error information for unaccepted external messages: `exit_code` and TVM trace (where applicable).
-* [Improved catchain DoS resistance](https://github.com/ton-blockchain/ton/blob/master/doc/catchain-dos.md)
-* A series of FunC improvements, summarized [here](https://github.com/ton-blockchain/ton/pull/378)
-#### Update delay
-Update coincided with persistent state serialization event which lead to block production speed deterioration (issue substantially mitigated in update itself). This phenomena was aggravated by the fact that after update some validators lost ability to participate in block creation. The last was caused by threshold based hardcoded protocol version bump, where threshold was set in such manner (based on block height with value higher than 9m), that it eluded detection in private net tests. The update was temporarily paused and resumed after persistent state serialization ended and issues with block creation were resolved.
-
-Besides the work of the core team, this update is based on the efforts of @awesome-doge (help with abseil-cpp upgrade), @rec00rsiff (noted issues for exotic endianess and implemented network stats) and third-party security auditors.
-
-## 2022.05 Update
-* Initial synchronization improved: adjusted timeouts for state download and the way of choosing which state to download. Nodes with low network speed and/or bad connectivity will synchronize faster and consistently.
-* Improved peer-to-peer network stability and DDoS resistance: now peers will only relay valid messages to the network. Large messages, which require splitting for relaying, will be retranslated as well, but only after the node gets all parts, and reassembles and checks them. Validators may sign certificates for network peers, which allow relaying large messages by parts without checks. It is used now by validators to faster relay new blocks. Sign and import certificate commands are exposed via `validator-engine-console`.
-* Fixed some rare edge cases in TVM arithmetic operations related to big numbers (`2**63+`)
-* Improved fixes used to combat wrong activate-destruct-activate contract behavior last November.
-* Improved tonlib: support libraries (with client-side caching), getmethods completely fill c7 register, getmethods support slice arguments, improved messages listing for transactions, added extended block header params, added getConfig method.
-* RocksDB updated to a newer version.
-* Improved persistent state serialization: memory usage during serialization was optimized; the start of serialization on different nodes was sparsed.
-* FunC update: support for string literals and constants (including precompiled constant expressions), semver, `include` expressions.
-* Fixed rarely manifested bugs in `Asm.fif`.
-* LiteClient supports key as cli parameter.
-* Improved Liteserver DoS resistance for running getmethods.
-
-Besides the work of the core team, this update is based on the efforts of @tvorogme (added support for slice arguments and noted bugs in Asm.fif), @akifoq (fixed bug in Asm.fif), @cryshado (noted strange behavior of LS, which, upon inspection, turned out to be a vector of DoS attack).
-
-
+## 2023年4月更新
+1. **CPU负载优化**：以前的DHT重新连接策略过于激进
+2. **网络吞吐量改进**：对外部消息广播的精细控制，优化celldb GC，调整状态序列化和块下载时间，rldp2用于状态和归档 
+3. **Fift更新**（命名空间）和Fift库更新（改进列表：https://github.com/ton-blockchain/ton/issues/631）
+4. **更好地处理funC中的不正确输入**：修复未定义行为并防止某些
