@@ -336,3 +336,179 @@ class Collator final : public td::actor::Actor {
 }  // namespace validator
 
 }  // namespace ton
+
+/*
+
+`Collator` 类是 TON 区块链中用于区块生成的核心组件之一。它负责收集交易、处理消息、生成新区块，并确保新区块符合区块链的规则和状态。以下是 `Collator` 类的主要特点和功能：
+
+### 成员变量
+- `shard_`: 表示当前工作链和分片的标识。
+- `new_id`: 新生成区块的 ID。
+- `busy_`: 表示是否正在生成区块。
+- `before_split_`、`after_split_`、`after_merge_`: 表示分片状态，用于处理分片合并和分裂。
+- `want_split_`、`want_merge_`: 表示是否希望进行分片分裂或合并。
+- `right_child_`: 表示是否是分裂后右侧的子分片。
+- `preinit_complete`: 表示预初始化是否完成。
+- `is_key_block_`: 表示是否是关键区块。
+- `block_full_`: 表示区块是否已满。
+- `inbound_queues_empty_`: 表示是否所有传入队列都为空。
+- `libraries_changed_`: 表示库是否已更改。
+- `prev_key_block_exists_`: 表示是否存在前一个关键区块。
+- `is_hardfork_`: 表示是否是硬分叉。
+- `min_ts`: 最小时间戳。
+- `min_mc_block_id`: 主链区块 ID 的最小值。
+- `prev_blocks`: 前一个区块的 ID 列表。
+- `prev_states`: 前一个分片区块的状态列表。
+- `prev_block_data`: 前一个区块的数据列表。
+- `created_by_`: 创建者的公钥。
+- `validator_set_`: 验证者集合。
+- `manager`: 验证者管理器的 Actor ID。
+- `timeout`: 超时时间戳。
+- `queue_cleanup_timeout_`、`soft_timeout_`、`medium_timeout_`: 不同的超时设置。
+- `main_promise`: 主要承诺，用于返回生成的区块候选。
+- `last_block_seqno`、`prev_mc_block_seqno`、`new_block_seqno`、`prev_key_block_seqno_`: 不同区块序列号。
+- `step`、`pending`: 用于控制生成区块的步骤和挂起的操作。
+
+### 静态成员函数
+- `supported_version()`: 返回支持的版本。
+- `supported_capabilities()`: 返回支持的功能。
+
+### 构造函数
+- `Collator(ShardIdFull shard, bool is_hardfork, td::uint32 min_ts, BlockIdExt min_masterchain_block_id, std::vector<BlockIdExt> prev, Ref<ValidatorSet> validator_set, Ed25519_PublicKey collator_id, td::actor::ActorId<ValidatorManager> manager, td::Timestamp timeout, td::Promise<BlockCandidate> promise)`: 构造函数，初始化 Collator 对象。
+
+### 成员函数
+- `is_busy()`: 检查是否正在生成区块。
+- `get_shard()`: 获取分片 ID。
+- `workchain()`: 获取工作链 ID。
+- `priority()`: 获取优先级。
+
+### 私有成员函数
+- `start_up()`: 启动时调用，初始化 Collator。
+- `alarm()`: 处理超时。
+- `init_utime()`: 初始化时间戳。
+- `init_lt()`: 初始化逻辑时间。
+- `fetch_config_params()`: 获取配置参数。
+- `fatal_error()`: 处理致命错误。
+- `check_pending()`: 检查挂起的操作。
+- `after_get_mc_state()`: 处理获取主链状态后的操作。
+- `after_get_shard_state()`: 处理获取分片状态后的操作。
+- `after_get_block_data()`: 处理获取区块数据后的操作。
+- `after_get_shard_blocks()`: 处理获取分片区块描述后的操作。
+- `preprocess_prev_mc_state()`: 预处理前一个主链状态。
+- `register_mc_state()`: 注册主链状态。
+- `request_aux_mc_state()`: 请求辅助主链状态。
+- `get_aux_mc_state()`: 获取辅助主链状态。
+- `fix_one_processed_upto()`: 修复单个已处理的消息上限。
+- `fix_processed_upto()`: 修复已处理的消息上限。
+- `got_neighbor_out_queue()`: 获取邻居出队列。
+- `got_out_queue_size()`: 获取出队列大小。
+- `adjust_shard_config()`: 调整分片配置。
+- `store_shard_fees()`: 存储分片费用。
+- `import_new_shard_top_blocks()`: 导入新的分片区块顶部。
+- `register_shard_block_creators()`: 注册分片区块创建者。
+- `init_block_limits()`: 初始化区块限制。
+- `compute_minted_amount()`: 计算要铸造的金额。
+- `init_value_create()`: 初始化值创建。
+- `try_collate()`: 尝试生成区块。
+- `do_preinit()`: 执行预初始化。
+- `do_collate()`: 执行区块生成。
+- `create_special_transactions()`: 创建特殊交易。
+- `create_ticktock_transactions()`: 创建 TickTock 交易。
+- `create_ordinary_transaction()`: 创建普通交易。
+- `check_cur_validator_set()`: 检查当前验证者集合。
+- `unpack_last_mc_state()`: 解包最后一个主链状态。
+- `unpack_last_state()`: 解包最后一个状态。
+- `unpack_merge_last_state()`: 解包合并后的状态。
+- `unpack_one_last_state()`: 解包一个状态。
+- `split_last_state()`: 分割最后一个状态。
+- `import_shard_state_data()`: 导入分片状态数据。
+- `add_trivial_neighbor()`: 添加平凡的邻居。
+- `out_msg_queue_cleanup()`: 出队列清理。
+- `dequeue_message()`: 出队列消息。
+- `check_prev_block()`: 检查前一个区块。
+- `check_this_shard_mc_info()`: 检查此分片的主链信息。
+- `request_neighbor_msg_queues()`: 请求邻居消息队列。
+- `request_out_msg_queue_size()`: 请求出队列大小。
+- `update_max_lt()`: 更新最大逻辑时间。
+- `is_our_address()`: 检查是否是我们的地址。
+- `after_get_external_messages()`: 获取外部消息后的操作。
+- `register_external_message_cell()`: 注册外部消息单元。
+- `register_new_msg()`: 注册新消息。
+- `register_new_msgs()`: 注册新消息。
+- `process_new_messages()`: 处理新消息。
+- `process_inbound_internal_messages()`: 处理传入的内部消息。
+- `process_inbound_external_messages()`: 处理传入的外部消息。
+- `process_external_message()`: 处理外部消息。
+- `enqueue_message()`: 入队列消息。
+- `enqueue_transit_message()`: 入队列传输消息。
+- `delete_out_msg_queue_msg()`: 删除出队列消息。
+- `insert_in_msg()`: 插入传入消息。
+- `insert_out_msg()`: 插入传出消息。
+- `register_out_msg_queue_op()`: 注册出队列操作。
+- `update_min_mc_seqno()`: 更新最小主链序列号。
+- `combine_account_transactions()`: 组合账户交易。
+- `update_public_libraries()`: 更新公共库。
+- `add_public_library()`: 添加公共库。
+- `remove_public_library()`: 移除公共库。
+- `check_block_overload()`: 检查区块过载。
+- `update_block_creator_count()`: 更新区块创建者计数。
+- `update_block_creator_stats()`: 更新区块创建者统计。
+- `create_mc_state_extra()`: 创建主链状态额外信息。
+- `create_shard_state()`: 创建分片状态。
+- `get_config_data_from_smc()`: 从智能合约获取配置数据。
+- `try_fetch_new_config()`: 尝试获取新配置。
+- `update_processed_upto()`: 更新已处理的消息上限。
+- `compute_out_msg_queue_info()`: 计算传出消息队列信息。
+- `compute_total_balance()`: 计算总余额。
+- `store_master_ref()`: 存储主链引用。
+- `store_prev_blk_ref()`: 存储前一个区块引用。
+- `store_zero_state_ref()`: 存储零状态引用。
+- `store_version()`: 存储版本。
+- `create_block_info()`: 创建区块信息。
+- `check_value_flow()`: 检查价值流。
+- `create_block_extra()`: 创建区块额外信息。
+- `update_shard_config()`: 更新分片配置。
+- `create_mc_block_extra()`: 创建主链区块额外信息。
+- `create_block()`: 创建区块。
+- `collate_shard_block_descr_set()`: 收集分片区块描述集。
+- `create_collated_data()`: 创建收集的数据。
+- `create_block_candidate()`: 创建区块候选。
+- `return_block_candidate()`: 返回区块候选。
+- `update_last_proc_int_msg()`: 更新最后处理的内部消息。
+
+*/
+
+/*
+在TON区块链中，`Collator` 类是一个核心组件，其主要作用是负责生成新的区块。以下是 `Collator` 类的关键职责和功能：
+
+1. **区块组装**：`Collator` 收集交易和消息，并将它们组织成一个新的区块。
+
+2. **状态管理**：它管理分片的状态，包括处理账户状态、交易执行结果和状态转换。
+
+3. **交易处理**：`Collator` 处理传入的交易，包括验证交易的有效性、执行交易逻辑和更新账户余额。
+
+4. **消息队列管理**：它管理消息队列，包括内部消息和外部消息，确保消息按正确的顺序被处理。
+
+5. **分片和主链交互**：`Collator` 与主链交互，获取主链状态和配置，以确保分片区块的生成与主链保持一致。
+
+6. **安全性保证**：通过验证交易和消息的签名，`Collator` 确保网络的安全性。
+
+7. **区块验证**：在将区块添加到区块链之前，`Collator` 需要验证区块的有效性，包括检查区块的工作量证明（PoW）和区块头信息。
+
+8. **硬分叉处理**：`Collator` 处理区块链的硬分叉，确保在区块链升级时区块的连续性和一致性。
+
+9. **配置参数管理**：它从主链获取配置参数，并根据这些参数调整区块生成的逻辑。
+
+10. **错误处理**：`Collator` 能够处理和报告在区块生成过程中出现的错误，确保系统的稳定性。
+
+11. **性能监控**：通过监控区块生成过程中的性能指标，`Collator` 可以优化区块生成的效率。
+
+12. **与验证者管理器交互**：`Collator` 与 `ValidatorManager` 交互，获取验证者集合信息，这对于区块的验证和确认至关重要。
+
+13. **超时管理**：`Collator` 管理区块生成的超时，确保在预定时间内完成区块的生成。
+
+总的来说，`Collator` 类在TON区块链中扮演着组装新区块、维护网络状态和推动区块链进展的关键角色。
+它通过与区块链的其他组件（如主链、验证者集合、消息队列等）交互，确保区块链的稳定运行和数据的一致性。
+
+*/
+

@@ -10,16 +10,19 @@
 #include "crypto/vm/stack.hpp"
 #include "crypto/vm/memo.h"
 
+// 将 base64 编码的 BOC 转换为 Cell 对象
 td::Result<td::Ref<vm::Cell>> boc_b64_to_cell(const char *boc) {
-  TRY_RESULT_PREFIX(boc_decoded, td::base64_decode(td::Slice(boc)), "Can't decode base64 boc: ");
+  TRY_RESULT_PREFIX(boc_decoded, td::base64_decode(td::Slice(boc)), "无法解码 base64 boc: ");
   return vm::std_boc_deserialize(boc_decoded);
 }
 
+// 将 Cell 对象转换为 base64 编码的 BOC
 td::Result<std::string> cell_to_boc_b64(td::Ref<vm::Cell> cell) {
-  TRY_RESULT_PREFIX(boc, vm::std_boc_serialize(std::move(cell), vm::BagOfCells::Mode::WithCRC32C), "Can't serialize cell: ");
+  TRY_RESULT_PREFIX(boc, vm::std_boc_serialize(std::move(cell), vm::BagOfCells::Mode::WithCRC32C), "无法序列化 Cell: ");
   return td::base64_encode(boc.as_slice());
 }
 
+// 创建成功响应的 JSON 字符串
 const char *success_response(std::string&& transaction, std::string&& new_shard_account, std::string&& vm_log, 
                              td::optional<std::string>&& actions, double elapsed_time) {
   td::JsonBuilder jb;
@@ -38,6 +41,7 @@ const char *success_response(std::string&& transaction, std::string&& new_shard_
   return strdup(jb.string_builder().as_cslice().c_str());
 }
 
+// 创建错误响应的 JSON 字符串
 const char *error_response(std::string&& error) {
   td::JsonBuilder jb;
   auto json_obj = jb.enter_object();
@@ -48,11 +52,12 @@ const char *error_response(std::string&& error) {
   return strdup(jb.string_builder().as_cslice().c_str());
 }
 
+// 创建外部消息未被接受的响应的 JSON 字符串
 const char *external_not_accepted_response(std::string&& vm_log, int vm_exit_code, double elapsed_time) {
   td::JsonBuilder jb;
   auto json_obj = jb.enter_object();
   json_obj("success", td::JsonFalse());
-  json_obj("error", "External message not accepted by smart contract");
+  json_obj("error", "外部消息未被智能合约接受");
   json_obj("external_not_accepted", td::JsonTrue());
   json_obj("vm_log", std::move(vm_log));
   json_obj("vm_exit_code", vm_exit_code);
@@ -61,15 +66,18 @@ const char *external_not_accepted_response(std::string&& vm_log, int vm_exit_cod
   return strdup(jb.string_builder().as_cslice().c_str());
 }
 
+// 宏定义，用于返回错误响应
 #define ERROR_RESPONSE(error) return error_response(error)
 
+// 解码配置 BOC 并返回配置对象
 td::Result<block::Config> decode_config(const char* config_boc) {
-  TRY_RESULT_PREFIX(config_params_cell, boc_b64_to_cell(config_boc), "Can't deserialize config params boc: ");
+  TRY_RESULT_PREFIX(config_params_cell, boc_b64_to_cell(config_boc), "无法反序列化配置参数 boc: ");
   auto global_config = block::Config(config_params_cell, td::Bits256::zero(), block::Config::needWorkchainInfo | block::Config::needSpecialSmc | block::Config::needCapabilities);
-  TRY_STATUS_PREFIX(global_config.unpack(), "Can't unpack config params: ");
+  TRY_STATUS_PREFIX(global_config.unpack(), "无法解包配置参数: ");
   return global_config;
 }
 
+// 创建 TransactionEmulator 对象
 void *transaction_emulator_create(const char *config_params_boc, int vm_log_verbosity) {
   auto global_config_res = decode_config(config_params_boc);
   if (global_config_res.is_error()) {
@@ -80,25 +88,28 @@ void *transaction_emulator_create(const char *config_params_boc, int vm_log_verb
   return new emulator::TransactionEmulator(global_config_res.move_as_ok(), vm_log_verbosity);
 }
 
+// 模拟交易
 const char *transaction_emulator_emulate_transaction(void *transaction_emulator, const char *shard_account_boc, const char *message_boc) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
   
+  // 将 message BOC 转换为 Cell 对象
   auto message_cell_r = boc_b64_to_cell(message_boc);
   if (message_cell_r.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't deserialize message boc: " << message_cell_r.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法反序列化消息 boc: " << message_cell_r.move_as_error());
   }
   auto message_cell = message_cell_r.move_as_ok();
   auto message_cs = vm::load_cell_slice(message_cell);
   int msg_tag = block::gen::t_CommonMsgInfo.get_tag(message_cs);
 
+  // 将 shard account BOC 转换为 Cell 对象
   auto shard_account_cell = boc_b64_to_cell(shard_account_boc);
   if (shard_account_cell.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't deserialize shard account boc: " << shard_account_cell.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法反序列化 shard account boc: " << shard_account_cell.move_as_error());
   }
   auto shard_account_slice = vm::load_cell_slice(shard_account_cell.ok_ref());
   block::gen::ShardAccount::Record shard_account;
   if (!tlb::unpack(shard_account_slice, shard_account)) {
-    ERROR_RESPONSE(PSTRING() << "Can't unpack shard account cell");
+    ERROR_RESPONSE(PSTRING() << "无法解包 shard account cell");
   }
 
   td::Ref<vm::CellSlice> addr_slice;
@@ -108,32 +119,34 @@ const char *transaction_emulator_emulate_transaction(void *transaction_emulator,
     if (msg_tag == block::gen::CommonMsgInfo::ext_in_msg_info) {
       block::gen::CommonMsgInfo::Record_ext_in_msg_info info;
       if (!tlb::unpack(message_cs, info)) {
-        ERROR_RESPONSE(PSTRING() <<  "Can't unpack inbound external message");
+        ERROR_RESPONSE(PSTRING() <<  "无法解包外部消息");
       }
       addr_slice = std::move(info.dest);
     }
     else if (msg_tag == block::gen::CommonMsgInfo::int_msg_info) {
       block::gen::CommonMsgInfo::Record_int_msg_info info;
       if (!tlb::unpack(message_cs, info)) {
-          ERROR_RESPONSE(PSTRING() << "Can't unpack inbound internal message");
+          ERROR_RESPONSE(PSTRING() << "无法解包内部消息");
       }
       addr_slice = std::move(info.dest);
     } else {
-      ERROR_RESPONSE(PSTRING() << "Only ext in and int message are supported");
+      ERROR_RESPONSE(PSTRING() << "仅支持外部消息和内部消息");
     }
   } else if (block::gen::t_Account.get_tag(account_slice) == block::gen::Account::account) {
     block::gen::Account::Record_account account_record;
     if (!tlb::unpack(account_slice, account_record)) {
-      ERROR_RESPONSE(PSTRING() << "Can't unpack account cell");
+      ERROR_RESPONSE(PSTRING() << "无法解包账户 cell");
     }
     addr_slice = std::move(account_record.addr);
   } else {
-    ERROR_RESPONSE(PSTRING() << "Can't parse account cell");
+    ERROR_RESPONSE(PSTRING() << "无法解析账户 cell");
   }
+  
+  // 提取工作链 ID 和智能合约地址
   ton::WorkchainId wc;
   ton::StdSmcAddress addr;
   if (!block::tlb::t_MsgAddressInt.extract_std_address(addr_slice, wc, addr)) {
-    ERROR_RESPONSE(PSTRING() << "Can't extract account address");
+    ERROR_RESPONSE(PSTRING() << "无法提取账户地址");
   }
 
   auto account = block::Account(wc, addr.bits());
@@ -144,11 +157,11 @@ const char *transaction_emulator_emulate_transaction(void *transaction_emulator,
   bool is_special = wc == ton::masterchainId && emulator->get_config().is_special_smartcontract(addr);
   if (account_exists) {
     if (!account.unpack(vm::load_cell_slice_ref(shard_account_cell.move_as_ok()), now, is_special)) {
-      ERROR_RESPONSE(PSTRING() << "Can't unpack shard account");
+      ERROR_RESPONSE(PSTRING() << "无法解包 shard account");
     }
   } else {
     if (!account.init_new(now)) {
-      ERROR_RESPONSE(PSTRING() << "Can't init new account");
+      ERROR_RESPONSE(PSTRING() << "无法初始化新账户");
     }
     account.last_trans_lt_ = shard_account.last_trans_lt;
     account.last_trans_hash_ = shard_account.last_trans_hash;
@@ -156,7 +169,7 @@ const char *transaction_emulator_emulate_transaction(void *transaction_emulator,
 
   auto result = emulator->emulate_transaction(std::move(account), message_cell, now, 0, block::transaction::Transaction::tr_ord);
   if (result.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Emulate transaction failed: " << result.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "模拟交易失败: " << result.move_as_error());
   }
   auto emulation_result = result.move_as_ok();
 
@@ -169,7 +182,7 @@ const char *transaction_emulator_emulate_transaction(void *transaction_emulator,
   auto emulation_success = dynamic_cast<emulator::TransactionEmulator::EmulationSuccess&>(*emulation_result);
   auto trans_boc_b64 = cell_to_boc_b64(std::move(emulation_success.transaction));
   if (trans_boc_b64.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't serialize Transaction to boc " << trans_boc_b64.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法序列化交易为 boc " << trans_boc_b64.move_as_error());
   }
 
   auto new_shard_account_cell = vm::CellBuilder().store_ref(emulation_success.account.total_state)
@@ -177,14 +190,14 @@ const char *transaction_emulator_emulate_transaction(void *transaction_emulator,
                                .store_long(emulation_success.account.last_trans_lt_).finalize();
   auto new_shard_account_boc_b64 = cell_to_boc_b64(std::move(new_shard_account_cell));
   if (new_shard_account_boc_b64.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't serialize ShardAccount to boc " << new_shard_account_boc_b64.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法序列化 ShardAccount 为 boc " << new_shard_account_boc_b64.move_as_error());
   }
 
   td::optional<td::string> actions_boc_b64;
   if (emulation_success.actions.not_null()) {
     auto actions_boc_b64_result = cell_to_boc_b64(std::move(emulation_success.actions));
     if (actions_boc_b64_result.is_error()) {
-      ERROR_RESPONSE(PSTRING() << "Can't serialize actions list cell to boc " << actions_boc_b64_result.move_as_error());
+      ERROR_RESPONSE(PSTRING() << "无法序列化 actions 列表 cell 为 boc " << actions_boc_b64_result.move_as_error());
     }
     actions_boc_b64 = actions_boc_b64_result.move_as_ok();
   }
@@ -193,33 +206,37 @@ const char *transaction_emulator_emulate_transaction(void *transaction_emulator,
                           std::move(actions_boc_b64), emulation_success.elapsed_time);
 }
 
+// 模拟 Tick/Tock 交易
 const char *transaction_emulator_emulate_tick_tock_transaction(void *transaction_emulator, const char *shard_account_boc, bool is_tock) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
   
+  // 将 shard account BOC 转换为 Cell 对象
   auto shard_account_cell = boc_b64_to_cell(shard_account_boc);
   if (shard_account_cell.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't deserialize shard account boc: " << shard_account_cell.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法反序列化 shard account boc: " << shard_account_cell.move_as_error());
   }
   auto shard_account_slice = vm::load_cell_slice(shard_account_cell.ok_ref());
   block::gen::ShardAccount::Record shard_account;
   if (!tlb::unpack(shard_account_slice, shard_account)) {
-    ERROR_RESPONSE(PSTRING() << "Can't unpack shard account cell");
+    ERROR_RESPONSE(PSTRING() << "无法解包 shard account cell");
   }
 
   td::Ref<vm::CellSlice> addr_slice;
   auto account_slice = vm::load_cell_slice(shard_account.account);
   if (block::gen::t_Account.get_tag(account_slice) == block::gen::Account::account_none) {
-    ERROR_RESPONSE(PSTRING() <<  "Can't run tick/tock transaction on account_none");
+    ERROR_RESPONSE(PSTRING() <<  "无法在 account_none 上运行 tick/tock 交易");
   }
   block::gen::Account::Record_account account_record;
   if (!tlb::unpack(account_slice, account_record)) {
-    ERROR_RESPONSE(PSTRING() << "Can't unpack account cell");
+    ERROR_RESPONSE(PSTRING() << "无法解包账户 cell");
   }
   addr_slice = std::move(account_record.addr);
+  
+  // 提取工作链 ID 和智能合约地址
   ton::WorkchainId wc;
   ton::StdSmcAddress addr;
   if (!block::tlb::t_MsgAddressInt.extract_std_address(addr_slice, wc, addr)) {
-    ERROR_RESPONSE(PSTRING() << "Can't extract account address");
+    ERROR_RESPONSE(PSTRING() << "无法提取账户地址");
   }
 
   auto account = block::Account(wc, addr.bits());
@@ -229,20 +246,20 @@ const char *transaction_emulator_emulate_tick_tock_transaction(void *transaction
   }
   bool is_special = wc == ton::masterchainId && emulator->get_config().is_special_smartcontract(addr);
   if (!account.unpack(vm::load_cell_slice_ref(shard_account_cell.move_as_ok()), now, is_special)) {
-    ERROR_RESPONSE(PSTRING() << "Can't unpack shard account");
+    ERROR_RESPONSE(PSTRING() << "无法解包 shard account");
   }
 
   auto trans_type = is_tock ? block::transaction::Transaction::tr_tock : block::transaction::Transaction::tr_tick;
   auto result = emulator->emulate_transaction(std::move(account), {}, now, 0, trans_type);
   if (result.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Emulate transaction failed: " << result.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "模拟交易失败: " << result.move_as_error());
   }
   auto emulation_result = result.move_as_ok();
 
   auto emulation_success = dynamic_cast<emulator::TransactionEmulator::EmulationSuccess&>(*emulation_result);
   auto trans_boc_b64 = cell_to_boc_b64(std::move(emulation_success.transaction));
   if (trans_boc_b64.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't serialize Transaction to boc " << trans_boc_b64.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法序列化交易为 boc " << trans_boc_b64.move_as_error());
   }
 
   auto new_shard_account_cell = vm::CellBuilder().store_ref(emulation_success.account.total_state)
@@ -250,14 +267,14 @@ const char *transaction_emulator_emulate_tick_tock_transaction(void *transaction
                                .store_long(emulation_success.account.last_trans_lt_).finalize();
   auto new_shard_account_boc_b64 = cell_to_boc_b64(std::move(new_shard_account_cell));
   if (new_shard_account_boc_b64.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't serialize ShardAccount to boc " << new_shard_account_boc_b64.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法序列化 ShardAccount 为 boc " << new_shard_account_boc_b64.move_as_error());
   }
 
   td::optional<td::string> actions_boc_b64;
   if (emulation_success.actions.not_null()) {
     auto actions_boc_b64_result = cell_to_boc_b64(std::move(emulation_success.actions));
     if (actions_boc_b64_result.is_error()) {
-      ERROR_RESPONSE(PSTRING() << "Can't serialize actions list cell to boc " << actions_boc_b64_result.move_as_error());
+      ERROR_RESPONSE(PSTRING() << "无法序列化 actions 列表 cell 为 boc " << actions_boc_b64_result.move_as_error());
     }
     actions_boc_b64 = actions_boc_b64_result.move_as_ok();
   }
@@ -266,6 +283,7 @@ const char *transaction_emulator_emulate_tick_tock_transaction(void *transaction
                           std::move(actions_boc_b64), emulation_success.elapsed_time);
 }
 
+// 设置 Unix 时间戳
 bool transaction_emulator_set_unixtime(void *transaction_emulator, uint32_t unixtime) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
@@ -274,6 +292,7 @@ bool transaction_emulator_set_unixtime(void *transaction_emulator, uint32_t unix
   return true;
 }
 
+// 设置 LT 值
 bool transaction_emulator_set_lt(void *transaction_emulator, uint64_t lt) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
@@ -282,17 +301,18 @@ bool transaction_emulator_set_lt(void *transaction_emulator, uint64_t lt) {
   return true;
 }
 
+// 设置随机种子
 bool transaction_emulator_set_rand_seed(void *transaction_emulator, const char* rand_seed_hex) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
   auto rand_seed_hex_slice = td::Slice(rand_seed_hex);
   if (rand_seed_hex_slice.size() != 64) {
-    LOG(ERROR) << "Rand seed expected as 64 characters hex string";
+    LOG(ERROR) << "随机种子应为 64 字符的十六进制字符串";
     return false;
   }
   auto rand_seed_bytes = td::hex_decode(rand_seed_hex_slice);
   if (rand_seed_bytes.is_error()) {
-    LOG(ERROR) << "Can't decode hex rand seed";
+    LOG(ERROR) << "无法解码十六进制随机种子";
     return false;
   }
   td::BitArray<256> rand_seed;
@@ -302,6 +322,7 @@ bool transaction_emulator_set_rand_seed(void *transaction_emulator, const char* 
   return true;
 }
 
+// 设置是否忽略签名检查
 bool transaction_emulator_set_ignore_chksig(void *transaction_emulator, bool ignore_chksig) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
@@ -310,6 +331,7 @@ bool transaction_emulator_set_ignore_chksig(void *transaction_emulator, bool ign
   return true;
 }
 
+// 设置配置
 bool transaction_emulator_set_config(void *transaction_emulator, const char* config_boc) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
@@ -324,13 +346,14 @@ bool transaction_emulator_set_config(void *transaction_emulator, const char* con
   return true;
 }
 
+// 设置库
 bool transaction_emulator_set_libs(void *transaction_emulator, const char* shardchain_libs_boc) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
   if (shardchain_libs_boc != nullptr) {
     auto shardchain_libs_cell = boc_b64_to_cell(shardchain_libs_boc);
     if (shardchain_libs_cell.is_error()) {
-      LOG(ERROR) << "Can't deserialize shardchain libraries boc: " << shardchain_libs_cell.move_as_error();
+      LOG(ERROR) << "无法反序列化 shardchain libraries boc: " << shardchain_libs_cell.move_as_error();
       return false;
     }
     emulator->set_libs(vm::Dictionary(shardchain_libs_cell.move_as_ok(), 256));
@@ -339,6 +362,8 @@ bool transaction_emulator_set_libs(void *transaction_emulator, const char* shard
   return true;
 }
 
+
+// 设置调试模式启用状态
 bool transaction_emulator_set_debug_enabled(void *transaction_emulator, bool debug_enabled) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
@@ -347,18 +372,19 @@ bool transaction_emulator_set_debug_enabled(void *transaction_emulator, bool deb
   return true;
 }
 
+// 设置之前的区块信息
 bool transaction_emulator_set_prev_blocks_info(void *transaction_emulator, const char* info_boc) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 
   if (info_boc != nullptr) {
     auto info_cell = boc_b64_to_cell(info_boc);
     if (info_cell.is_error()) {
-      LOG(ERROR) << "Can't deserialize previous blocks boc: " << info_cell.move_as_error();
+      LOG(ERROR) << "无法反序列化之前的区块 boc: " << info_cell.move_as_error();
       return false;
     }
     vm::StackEntry info_value;
     if (!info_value.deserialize(info_cell.move_as_ok())) {
-      LOG(ERROR) << "Can't deserialize previous blocks tuple";
+      LOG(ERROR) << "无法反序列化之前的区块元组";
       return false;
     }
     if (info_value.is_null()) {
@@ -366,7 +392,7 @@ bool transaction_emulator_set_prev_blocks_info(void *transaction_emulator, const
     } else if (info_value.is_tuple()) {
       emulator->set_prev_blocks_info(info_value.as_tuple());
     } else {
-      LOG(ERROR) << "Can't set previous blocks tuple: not a tuple";
+      LOG(ERROR) << "无法设置之前的区块元组: 不是一个元组";
       return false;
     }
   }
@@ -374,10 +400,12 @@ bool transaction_emulator_set_prev_blocks_info(void *transaction_emulator, const
   return true;
 }
 
+// 销毁交易模拟器实例
 void transaction_emulator_destroy(void *transaction_emulator) {
   delete static_cast<emulator::TransactionEmulator *>(transaction_emulator);
 }
 
+// 设置日志详细级别
 bool emulator_set_verbosity_level(int verbosity_level) {
   if (0 <= verbosity_level && verbosity_level <= VERBOSITY_NAME(NEVER)) {
     SET_VERBOSITY_LEVEL(VERBOSITY_NAME(FATAL) + verbosity_level);
@@ -386,15 +414,16 @@ bool emulator_set_verbosity_level(int verbosity_level) {
   return false;
 }
 
+// 创建 TVM 模拟器
 void *tvm_emulator_create(const char *code, const char *data, int vm_log_verbosity) {
   auto code_cell = boc_b64_to_cell(code);
   if (code_cell.is_error()) {
-    LOG(ERROR) << "Can't deserialize code boc: " << code_cell.move_as_error();
+    LOG(ERROR) << "无法反序列化代码 boc: " << code_cell.move_as_error();
     return nullptr;
   }
   auto data_cell = boc_b64_to_cell(data);
   if (data_cell.is_error()) {
-    LOG(ERROR) << "Can't deserialize code boc: " << data_cell.move_as_error();
+    LOG(ERROR) << "无法反序列化数据 boc: " << data_cell.move_as_error();
     return nullptr;
   }
 
@@ -403,11 +432,12 @@ void *tvm_emulator_create(const char *code, const char *data, int vm_log_verbosi
   return emulator;
 }
 
+// 设置 TVM 模拟器的库
 bool tvm_emulator_set_libraries(void *tvm_emulator, const char *libs_boc) {
   vm::Dictionary libs{256};
   auto libs_cell = boc_b64_to_cell(libs_boc);
   if (libs_cell.is_error()) {
-    LOG(ERROR) << "Can't deserialize libraries boc: " << libs_cell.move_as_error();
+    LOG(ERROR) << "无法反序列化库 boc: " << libs_cell.move_as_error();
     return false;
   }
   libs = vm::Dictionary(libs_cell.move_as_ok(), 256);
@@ -418,11 +448,12 @@ bool tvm_emulator_set_libraries(void *tvm_emulator, const char *libs_boc) {
   return true;
 }
 
+// 设置 TVM 模拟器的 C7 状态
 bool tvm_emulator_set_c7(void *tvm_emulator, const char *address, uint32_t unixtime, uint64_t balance, const char *rand_seed_hex, const char *config_boc) {
   auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
   auto std_address = block::StdAddress::parse(td::Slice(address));
   if (std_address.is_error()) {
-    LOG(ERROR) << "Can't parse address: " << std_address.move_as_error();
+    LOG(ERROR) << "无法解析地址: " << std_address.move_as_error();
     return false;
   }
   
@@ -430,7 +461,7 @@ bool tvm_emulator_set_c7(void *tvm_emulator, const char *address, uint32_t unixt
   if (config_boc != nullptr) {
     auto config_params_cell = boc_b64_to_cell(config_boc);
     if (config_params_cell.is_error()) {
-      LOG(ERROR) << "Can't deserialize config params boc: " << config_params_cell.move_as_error();
+      LOG(ERROR) << "无法反序列化配置参数 boc: " << config_params_cell.move_as_error();
       return false;
     }
     global_config = std::make_shared<block::Config>(
@@ -438,19 +469,19 @@ bool tvm_emulator_set_c7(void *tvm_emulator, const char *address, uint32_t unixt
         block::Config::needWorkchainInfo | block::Config::needSpecialSmc | block::Config::needCapabilities);
     auto unpack_res = global_config->unpack();
     if (unpack_res.is_error()) {
-      LOG(ERROR) << "Can't unpack config params";
+      LOG(ERROR) << "无法解包配置参数";
       return false;
     }
   }
 
   auto rand_seed_hex_slice = td::Slice(rand_seed_hex);
   if (rand_seed_hex_slice.size() != 64) {
-    LOG(ERROR) << "Rand seed expected as 64 characters hex string";
+    LOG(ERROR) << "随机种子应为 64 字符的十六进制字符串";
     return false;
   }
   auto rand_seed_bytes = td::hex_decode(rand_seed_hex_slice);
   if (rand_seed_bytes.is_error()) {
-    LOG(ERROR) << "Can't decode hex rand seed";
+    LOG(ERROR) << "无法解码十六进制随机种子";
     return false;
   }
   td::BitArray<256> rand_seed;
@@ -461,18 +492,19 @@ bool tvm_emulator_set_c7(void *tvm_emulator, const char *address, uint32_t unixt
   return true;
 }
 
+// 设置 TVM 模拟器的之前区块信息
 bool tvm_emulator_set_prev_blocks_info(void *tvm_emulator, const char* info_boc) {
   auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
 
   if (info_boc != nullptr) {
     auto info_cell = boc_b64_to_cell(info_boc);
     if (info_cell.is_error()) {
-      LOG(ERROR) << "Can't deserialize previous blocks boc: " << info_cell.move_as_error();
+      LOG(ERROR) << "无法反序列化之前的区块 boc: " << info_cell.move_as_error();
       return false;
     }
     vm::StackEntry info_value;
     if (!info_value.deserialize(info_cell.move_as_ok())) {
-      LOG(ERROR) << "Can't deserialize previous blocks tuple";
+      LOG(ERROR) << "无法反序列化之前的区块元组";
       return false;
     }
     if (info_value.is_null()) {
@@ -480,7 +512,7 @@ bool tvm_emulator_set_prev_blocks_info(void *tvm_emulator, const char* info_boc)
     } else if (info_value.is_tuple()) {
       emulator->set_prev_blocks_info(info_value.as_tuple());
     } else {
-      LOG(ERROR) << "Can't set previous blocks tuple: not a tuple";
+      LOG(ERROR) << "无法设置之前的区块元组: 不是一个元组";
       return false;
     }
   }
@@ -488,42 +520,45 @@ bool tvm_emulator_set_prev_blocks_info(void *tvm_emulator, const char* info_boc)
   return true;
 }
 
+// 设置 TVM 模拟器的 gas 限制
 bool tvm_emulator_set_gas_limit(void *tvm_emulator, int64_t gas_limit) {
   auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
   emulator->set_gas_limit(gas_limit);
   return true;
 }
 
+// 设置 TVM 模拟器的调试模式启用状态
 bool tvm_emulator_set_debug_enabled(void *tvm_emulator, bool debug_enabled) {
   auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
   emulator->set_debug_enabled(debug_enabled);
   return true;
 }
 
+// 执行 TVM 模拟器的 get 方法
 const char *tvm_emulator_run_get_method(void *tvm_emulator, int method_id, const char *stack_boc) {
   auto stack_cell = boc_b64_to_cell(stack_boc);
   if (stack_cell.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Couldn't deserialize stack cell: " << stack_cell.move_as_error().to_string());
+    ERROR_RESPONSE(PSTRING() << "无法反序列化栈 cell: " << stack_cell.move_as_error().to_string());
   }
   auto stack_cs = vm::load_cell_slice(stack_cell.move_as_ok());
   td::Ref<vm::Stack> stack;
   if (!vm::Stack::deserialize_to(stack_cs, stack)) {
-     ERROR_RESPONSE(PSTRING() << "Couldn't deserialize stack");
+     ERROR_RESPONSE(PSTRING() << "无法反序列化栈");
   }
 
   auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
   auto result = emulator->run_get_method(method_id, stack);
   
-  vm::FakeVmStateLimits fstate(3500);  // limit recursive (de)serialization calls
+  vm::FakeVmStateLimits fstate(3500);  // 限制递归 (反) 序列化调用
   vm::VmStateInterface::Guard guard(&fstate);
   
   vm::CellBuilder stack_cb;
   if (!result.stack->serialize(stack_cb)) {
-    ERROR_RESPONSE(PSTRING() << "Couldn't serialize stack");
+    ERROR_RESPONSE(PSTRING() << "无法序列化栈");
   }
   auto result_stack_boc = cell_to_boc_b64(stack_cb.finalize());
   if (result_stack_boc.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Couldn't serialize stack cell: " << result_stack_boc.move_as_error().to_string());
+    ERROR_RESPONSE(PSTRING() << "无法序列化栈 cell: " << result_stack_boc.move_as_error().to_string());
   }
 
   td::JsonBuilder jb;
@@ -543,6 +578,7 @@ const char *tvm_emulator_run_get_method(void *tvm_emulator, int method_id, const
   return strdup(jb.string_builder().as_cslice().c_str());
 }
 
+// 执行 TVM 模拟器的运行方法
 const char *tvm_emulator_emulate_run_method(uint32_t len, const char *params_boc, int64_t gas_limit) {
   auto params_cell = vm::std_boc_deserialize(td::Slice(params_boc, len));
   if (params_cell.is_error()) {
@@ -603,10 +639,11 @@ const char *tvm_emulator_emulate_run_method(uint32_t len, const char *params_boc
   return rn;
 }
 
+// 发送外部消息
 const char *tvm_emulator_send_external_message(void *tvm_emulator, const char *message_body_boc) {
   auto message_body_cell = boc_b64_to_cell(message_body_boc);
   if (message_body_cell.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't deserialize message body boc: " << message_body_cell.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法反序列化消息体 boc: " << message_body_cell.move_as_error());
   }
 
   auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
@@ -636,10 +673,11 @@ const char *tvm_emulator_send_external_message(void *tvm_emulator, const char *m
   return strdup(jb.string_builder().as_cslice().c_str());
 }
 
+// 发送内部消息
 const char *tvm_emulator_send_internal_message(void *tvm_emulator, const char *message_body_boc, uint64_t amount) {
   auto message_body_cell = boc_b64_to_cell(message_body_boc);
   if (message_body_cell.is_error()) {
-    ERROR_RESPONSE(PSTRING() << "Can't deserialize message body boc: " << message_body_cell.move_as_error());
+    ERROR_RESPONSE(PSTRING() << "无法反序列化消息体 boc: " << message_body_cell.move_as_error());
   }
 
   auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
@@ -669,6 +707,7 @@ const char *tvm_emulator_send_internal_message(void *tvm_emulator, const char *m
   return strdup(jb.string_builder().as_cslice().c_str());
 }
 
+// 销毁 TVM 模拟器实例
 void tvm_emulator_destroy(void *tvm_emulator) {
   delete static_cast<emulator::TvmEmulator *>(tvm_emulator);
 }

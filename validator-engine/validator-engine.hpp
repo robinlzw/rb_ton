@@ -486,3 +486,54 @@ class ValidatorEngine : public td::actor::Actor {
   void process_control_query(td::uint16 port, ton::adnl::AdnlNodeIdShort src, ton::adnl::AdnlNodeIdShort dst,
                              td::BufferSlice data, td::Promise<td::BufferSlice> promise);
 };
+
+/*
+看起来你贴出了 `ValidatorEngine` 类的代码。这是一个用于管理和配置区块链验证引擎的类，
+它定义了许多函数和成员变量来处理不同的配置和操作。
+
+这个类主要包括以下几个部分：
+
+1. **成员变量**：用于存储各种配置信息和对象实例，例如 `keyring_`、`adnl_network_manager_`、`dht_nodes_` 等。
+这些成员变量帮助类管理 ADNL 网络、DHT 节点、验证器等。
+
+2. **配置操作**：类提供了多种方法来添加、删除或更新配置项。例如，`try_add_adnl_node`、`try_del_adnl_node`、`config_add_validator_permanent_key` 
+等方法可以用来添加或删除 ADNL 节点、DHT 节点和验证器密钥。
+
+3. **启动和加载**：类提供了方法来启动各种子系统，例如 `start_adnl`、`start_dht`、`start_validator` 等。
+它还可以加载配置文件和状态，例如 `load_global_config`、`load_local_config`。
+
+4. **控制接口**：类包含处理控制查询的方法，例如 `run_control_query`，用于处理来自控制接口的请求。
+
+*/
+
+/*
+这个代码文件是一个C++头文件，属于TON区块链的源代码的一部分。它定义了一个名为`ValidatorEngine`的类，该类是TON区块链系统中验证者节点的核心组件。以下是对这个文件的主要内容概述：
+
+1. **文件头部**
+
+2. **包含的头文件**：文件中包含了多个TON区块链项目中的其他头文件，如`adnl.h`、`ton_api.h`、`rldp.h`、`dht.h`、`validator/manager.h`等，这些文件提供了网络通信、数据结构、验证者管理等功能。
+
+3. **ValidatorEnginePermissions 枚举**：定义了验证者引擎的权限级别。
+
+4. **Config 结构**：定义了一个配置结构体，包含了网络地址、验证者信息、控制接口等配置项。
+
+5. **ValidatorEngine 类**：
+   - 包含了TON区块链网络所需的各种组件的成员变量，如密钥环(`Keyring`)、ADNL网络管理器(`AdnlNetworkManager`)、
+   DHT节点(`Dht`)、覆盖网络管理器(`Overlays`)、验证者管理接口(`ValidatorManagerInterface`)等。
+   - 提供了一系列方法来管理网络地址、ADNL地址、DHT节点、验证者密钥等，如添加、删除网络地址和ADNL地址。
+   - 提供了启动网络、DHT、覆盖网络、验证者、全节点等组件的方法。
+   - 提供了控制接口和控制查询的处理方法，允许用户通过控制接口执行各种操作，
+   如获取时间、导入私钥、导出公钥、生成密钥对、添加ADNL ID、添加DHT ID、添加验证者永久密钥、添加验证者临时密钥、添加验证者ADNL地址、
+   更改全节点ADNL地址、添加Liteserver、添加控制接口、删除ADNL ID、删除DHT ID、删除验证者永久密钥、删除验证者临时密钥、删除验证者ADNL地址等。
+
+6. **控制查询处理**：`ValidatorEngine`类中定义了处理控制查询的方法，这些方法可以响应不同的控制命令，
+如获取配置、签名、设置详细日志级别、获取统计信息、创建选举出价、检查DHT服务器、创建提案投票、创建投诉投票、导入证书、签名分片覆盖证书、
+导入分片覆盖证书、获取覆盖统计信息、获取性能计时器统计信息、获取分片出队列大小、设置外部消息广播禁用、添加自定义覆盖、删除自定义覆盖、
+显示自定义覆盖、设置状态序列化器启用等。
+
+7. **辅助函数**：文件中还包含了一些辅助函数，如`create_control_query_error`，用于创建控制查询错误消息。
+
+整体来看，这个文件定义了TON区块链验证者引擎的核心功能和配置管理，是TON区块链网络中验证者节点的关键部分。
+
+*/
+
